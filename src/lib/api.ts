@@ -14,8 +14,10 @@ api.interceptors.response.use(
   (r) => r,
   (err: unknown) => {
     if (axios.isAxiosError(err) && err.response?.status === 401) {
+      const hadToken = !!localStorage.getItem('pg_token')
       ;['pg_token', 'pg_role', 'pg_user'].forEach((k) => localStorage.removeItem(k))
-      window.location.href = '/login'
+      // Only hard-redirect when a valid session expired, not during login itself
+      if (hadToken) window.location.href = '/login'
     }
     return Promise.reject(err)
   },
