@@ -2,8 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { LoginPage } from './pages/LoginPage'
 import { PharmacistLayout } from './pages/pharmacist/PharmacistLayout'
-import { NewOrdersPage } from './pages/pharmacist/NewOrdersPage'
-import { CollectingPage } from './pages/pharmacist/CollectingPage'
+import { OrdersPage } from './pages/pharmacist/OrdersPage'
 import { ActiveOrdersPage } from './pages/pharmacist/ActiveOrdersPage'
 import { PharmacistHistoryPage } from './pages/pharmacist/HistoryPage'
 import { AdminLayout } from './pages/admin/AdminLayout'
@@ -28,8 +27,7 @@ export default function App() {
           }
         >
           <Route index element={<Navigate to="orders" replace />} />
-          <Route path="orders" element={<NewOrdersPage />} />
-          <Route path="collecting" element={<CollectingPage />} />
+          <Route path="orders" element={<OrdersPage />} />
           <Route path="active" element={<ActiveOrdersPage />} />
           <Route path="history" element={<PharmacistHistoryPage />} />
         </Route>

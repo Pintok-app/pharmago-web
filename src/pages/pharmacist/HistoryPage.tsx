@@ -1,10 +1,7 @@
+import { format } from 'date-fns'
 import { useEffect, useState } from 'react'
 import { StatusBadge } from '../../components/StatusBadge'
 import { api } from '../../lib/api'
-
-const HISTORY_STATUSES = new Set([
-  'COMPLETED', 'CANCELLED', 'RETURNED', 'PHARMACY_REJECTED', 'PHARMACY_TIMEOUT',
-])
 
 interface Order {
   id: string
@@ -14,6 +11,7 @@ interface Order {
   customer: { name: string; phone: string }
   items: Array<{ nameRu: string; quantity: number }>
   createdAt: string
+  deliveredAt: string | null
 }
 
 export function PharmacistHistoryPage() {
@@ -21,8 +19,8 @@ export function PharmacistHistoryPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    api.get<Order[]>('/pharmacist/orders')
-      .then((r) => setOrders(r.data.filter((o) => HISTORY_STATUSES.has(o.status))))
+    api.get<Order[]>('/pharmacist/orders/history')
+      .then((r) => setOrders(r.data))
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
@@ -49,6 +47,7 @@ export function PharmacistHistoryPage() {
               <th className="text-left px-4 py-3 font-medium text-gray-500">Состав</th>
               <th className="text-right px-4 py-3 font-medium text-gray-500">Сумма</th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">Статус</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">Дата</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -63,6 +62,9 @@ export function PharmacistHistoryPage() {
                   {order.totalPrice.toLocaleString()}
                 </td>
                 <td className="px-4 py-3"><StatusBadge status={order.status} /></td>
+                <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
+                  {format(new Date(order.createdAt), 'dd.MM HH:mm')}
+                </td>
               </tr>
             ))}
           </tbody>

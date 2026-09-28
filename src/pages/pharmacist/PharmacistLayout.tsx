@@ -2,10 +2,9 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { clearAuth, getAuth } from '../../store/authStore'
 
 const NAV = [
-  { to: '/pharmacist/orders',     label: 'Новые' },
-  { to: '/pharmacist/collecting', label: 'Сборка' },
-  { to: '/pharmacist/active',     label: 'Активные' },
-  { to: '/pharmacist/history',    label: 'История' },
+  { to: '/pharmacist/orders',  label: 'Заказы' },
+  { to: '/pharmacist/active',  label: 'В доставке' },
+  { to: '/pharmacist/history', label: 'История' },
 ]
 
 export function PharmacistLayout() {

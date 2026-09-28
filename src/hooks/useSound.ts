@@ -7,15 +7,21 @@ export function useSound() {
     const ctx = ctxRef.current ?? new AudioContext()
     ctxRef.current = ctx
 
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-    osc.connect(gain)
-    gain.connect(ctx.destination)
-
-    osc.frequency.value = 880
-    gain.gain.setValueAtTime(0.3, ctx.currentTime)
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5)
-    osc.start(ctx.currentTime)
-    osc.stop(ctx.currentTime + 0.5)
+    // Ascending triple beep — much more attention-grabbing than a single tone
+    const freqs = [880, 1047, 1319]
+    freqs.forEach((freq, i) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.type = 'sine'
+      osc.frequency.value = freq
+      const t = ctx.currentTime + i * 0.18
+      gain.gain.setValueAtTime(0, t)
+      gain.gain.linearRampToValueAtTime(0.45, t + 0.02)
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3)
+      osc.start(t)
+      osc.stop(t + 0.3)
+    })
   }, [])
 }
