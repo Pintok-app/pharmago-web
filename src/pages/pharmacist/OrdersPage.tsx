@@ -84,12 +84,17 @@ export function OrdersPage() {
     setLoading((l) => ({ ...l, [id]: true }))
     try {
       await api.patch(`/pharmacist/orders/${id}/collecting`)
-      // Move from pending → collecting in-place (no page switch needed)
-      setPending((prev) => {
-        const order = prev.find((o) => o.id === id)
-        if (order) setCollecting((c) => [...c, { ...order, status: 'PHARMACY_COLLECTING' }])
-        return prev.filter((o) => o.id !== id)
-      })
+      // Capture the order BEFORE removing it from pending (closure, not inside updater)
+      const movedOrder = pending.find((o) => o.id === id)
+      // Two separate setState calls — no side effects inside updaters (StrictMode safe)
+      setPending((prev) => prev.filter((o) => o.id !== id))
+      if (movedOrder) {
+        setCollecting((prev) =>
+          prev.some((o) => o.id === movedOrder.id)
+            ? prev
+            : [...prev, { ...movedOrder, status: 'PHARMACY_COLLECTING' }]
+        )
+      }
     } finally {
       setLoading((l) => ({ ...l, [id]: false }))
     }
