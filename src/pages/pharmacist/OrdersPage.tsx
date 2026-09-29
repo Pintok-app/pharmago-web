@@ -56,7 +56,11 @@ export function OrdersPage() {
         try {
           const data = JSON.parse(ev.data) as { type: string; order: Order }
           if (data.type === 'NEW_ORDER') {
-            setPending((prev) => [data.order, ...prev])
+            setPending((prev) =>
+              prev.some((o) => o.id === data.order.id)
+                ? prev
+                : [data.order, ...prev]
+            )
             beep()
           }
         } catch { /* ignore */ }
