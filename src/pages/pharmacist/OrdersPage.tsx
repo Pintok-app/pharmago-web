@@ -5,6 +5,7 @@ import { StatusBadge } from '../../components/StatusBadge'
 import { useSound } from '../../hooks/useSound'
 import { api, API_URL } from '../../lib/api'
 import { getAuth } from '../../store/authStore'
+import { CreateOrderModal } from './CreateOrderModal'
 
 interface OrderItem {
   medicineId: string
@@ -37,6 +38,7 @@ export function OrdersPage() {
   const [loading, setLoading] = useState<Record<string, boolean>>({})
   const beep = useSound()
   const soundTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [showCreate, setShowCreate] = useState(false)
 
   function classifyOrders(orders: Order[]) {
     setPending(orders.filter((o) => o.status === 'AWAITING_PHARMACY'))
@@ -137,6 +139,17 @@ export function OrdersPage() {
 
   return (
     <div className="max-w-3xl space-y-8">
+
+      {/* ── Header with create button ───────────────────── */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-semibold text-gray-900">Заказы</h1>
+        <button
+          onClick={() => setShowCreate(true)}
+          className="px-4 py-2 bg-[#16a273] text-white text-sm font-semibold rounded-lg hover:bg-[#13916a] transition-colors"
+        >
+          + Создать заказ
+        </button>
+      </div>
 
       {/* ── Pending orders ─────────────────────────────── */}
       <section>
@@ -284,6 +297,15 @@ export function OrdersPage() {
       )}
 
       {/* Reject modal */}
+      {showCreate && (
+        <CreateOrderModal
+          onClose={() => setShowCreate(false)}
+          onCreated={() => {
+            api.get<Order[]>('/pharmacist/orders').then((r) => classifyOrders(r.data)).catch(() => {})
+          }}
+        />
+      )}
+
       {rejectId && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">

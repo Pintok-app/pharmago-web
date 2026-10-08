@@ -8,6 +8,8 @@ interface Stats {
   todayRevenue: number
   activeOrders: number
   onlineDrivers: number
+  appOrdersToday: number
+  phoneOrdersToday: number
 }
 
 interface Order {
@@ -82,6 +84,8 @@ export function DashboardPage() {
             { label: 'Выручка сегодня',  value: `${stats.todayRevenue.toLocaleString()} сум` },
             { label: 'Активные заказы',  value: stats.activeOrders },
             { label: 'Водителей онлайн', value: stats.onlineDrivers },
+            { label: '📱 Через приложение', value: stats.appOrdersToday },
+            { label: '📞 По звонку',        value: stats.phoneOrdersToday },
           ].map((s) => (
             <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-4">
               <p className="text-sm text-gray-500">{s.label}</p>
