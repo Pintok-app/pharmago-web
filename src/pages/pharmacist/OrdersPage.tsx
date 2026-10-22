@@ -138,7 +138,7 @@ export function OrdersPage() {
   const isEmpty = pending.length === 0 && collecting.length === 0
 
   return (
-    <div className="max-w-3xl space-y-8">
+    <div className="space-y-8">
 
       {/* ── Header with create button ───────────────────── */}
       <div className="flex items-center justify-between">

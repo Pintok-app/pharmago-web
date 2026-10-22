@@ -47,7 +47,7 @@ export function ActiveOrdersPage() {
   }
 
   return (
-    <div className="space-y-4 max-w-3xl">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold text-gray-900">Активные заказы ({orders.length})</h1>
         <button onClick={load} className="text-sm text-[#16a273] hover:underline">Обновить</button>

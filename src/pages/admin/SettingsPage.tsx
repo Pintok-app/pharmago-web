@@ -38,7 +38,7 @@ export function SettingsPage() {
   if (loading) return <div className="py-12 text-center text-gray-400">Загрузка...</div>
 
   return (
-    <div className="space-y-6 max-w-lg">
+    <div className="space-y-6 max-w-lg mx-auto">
       <h1 className="text-xl font-semibold text-gray-900">Настройки</h1>
 
       <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">

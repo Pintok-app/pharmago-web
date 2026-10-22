@@ -36,7 +36,7 @@ export function PharmacistHistoryPage() {
   }
 
   return (
-    <div className="space-y-4 max-w-4xl">
+    <div className="space-y-4">
       <h1 className="text-lg font-semibold text-gray-900">История заказов</h1>
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <table className="w-full text-sm">
