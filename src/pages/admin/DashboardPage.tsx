@@ -29,10 +29,16 @@ interface OrdersResponse {
   limit: number
 }
 
-const STATUSES = [
-  'AWAITING_PHARMACY', 'PHARMACY_COLLECTING', 'PHARMACY_CONFIRMED',
-  'SEARCHING_DRIVER', 'DRIVER_ASSIGNED', 'DRIVER_AT_PHARMACY',
-  'PICKED_UP', 'ARRIVED', 'COMPLETED', 'CANCELLED', 'RETURNED',
+const STATUSES: { value: string; label: string }[] = [
+  { value: 'AWAITING_PHARMACY',    label: 'Ожидает аптеку' },
+  { value: 'PHARMACY_COLLECTING',  label: 'Аптека собирает' },
+  { value: 'PHARMACY_CONFIRMED',   label: 'Аптека подтвердила' },
+  { value: 'SEARCHING_DRIVER',     label: 'Ищем водителя' },
+  { value: 'DRIVER_ASSIGNED',      label: 'Водитель назначен' },
+  { value: 'PICKED_UP',            label: 'Забрал из аптеки' },
+  { value: 'COMPLETED',            label: 'Доставлен' },
+  { value: 'CANCELLED',            label: 'Отменён' },
+  { value: 'RETURNED',             label: 'Возврат' },
 ]
 
 const PAGE_SIZE = 20
@@ -78,12 +84,21 @@ export function DashboardPage() {
       <h1 className="text-xl font-semibold text-gray-900">Дашборд</h1>
 
       {stats && (
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
-            { label: 'Заказов сегодня',  value: stats.todayCount },
-            { label: 'Выручка сегодня',  value: `${stats.todayRevenue.toLocaleString()} сум` },
-            { label: 'Активные заказы',  value: stats.activeOrders },
-            { label: 'Водителей онлайн', value: stats.onlineDrivers },
+            { label: 'Заказов сегодня',     value: stats.todayCount },
+            { label: 'Выручка сегодня',     value: `${stats.todayRevenue.toLocaleString()} сум` },
+            { label: 'Активные заказы',     value: stats.activeOrders },
+            { label: 'Водителей онлайн',    value: stats.onlineDrivers },
+          ].map((s) => (
+            <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-4">
+              <p className="text-sm text-gray-500">{s.label}</p>
+              <p className="text-2xl font-semibold text-gray-900 mt-1">{s.value}</p>
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          {[
             { label: '📱 Через приложение', value: stats.appOrdersToday },
             { label: '📞 По звонку',        value: stats.phoneOrdersToday },
           ].map((s) => (
@@ -137,7 +152,7 @@ export function DashboardPage() {
             <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1) }}
               className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#16a273]">
               <option value="">Все статусы</option>
-              {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+              {STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
           </div>
 
