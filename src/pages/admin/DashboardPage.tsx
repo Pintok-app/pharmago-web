@@ -84,6 +84,7 @@ export function DashboardPage() {
       <h1 className="text-xl font-semibold text-gray-900">Дашборд</h1>
 
       {stats && (
+        <>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
             { label: 'Заказов сегодня',     value: stats.todayCount },
@@ -108,6 +109,7 @@ export function DashboardPage() {
             </div>
           ))}
         </div>
+        </>
       )}
 
       {/* Filters */}
