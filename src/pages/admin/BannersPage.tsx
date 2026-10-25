@@ -96,6 +96,7 @@ export function BannersPage() {
             <input value={imageUrl} onChange={e => setImageUrl(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#16a273]"
               placeholder="https://..." />
+            <p className="text-xs text-gray-400 mt-1">Рекомендуемый размер: <strong>520 × 260 px</strong> (соотношение 2:1). Форматы: JPG, PNG, WebP.</p>
           </div>
 
           <div>
