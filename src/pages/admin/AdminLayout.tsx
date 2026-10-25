@@ -4,6 +4,7 @@ import { clearAuth, getAuth } from '../../store/authStore'
 const NAV = [
   { to: '/admin/dashboard',    label: 'Заказы' },
   { to: '/admin/pharmacies',   label: 'Аптеки' },
+  { to: '/admin/banners',      label: 'Баннеры' },
   { to: '/admin/drivers',      label: 'Водители' },
   { to: '/admin/pharmacists',  label: 'Фармацевты' },
   { to: '/admin/settings',     label: 'Настройки' },

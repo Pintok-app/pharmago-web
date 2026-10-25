@@ -8,6 +8,7 @@ import { PharmacistHistoryPage } from './pages/pharmacist/HistoryPage'
 import { AdminLayout } from './pages/admin/AdminLayout'
 import { DashboardPage } from './pages/admin/DashboardPage'
 import { PharmaciesPage } from './pages/admin/PharmaciesPage'
+import { BannersPage } from './pages/admin/BannersPage'
 import { DriversPage } from './pages/admin/DriversPage'
 import { PharmacistsPage } from './pages/admin/PharmacistsPage'
 import { SettingsPage } from './pages/admin/SettingsPage'
@@ -43,6 +44,7 @@ export default function App() {
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="pharmacies" element={<PharmaciesPage />} />
+          <Route path="banners" element={<BannersPage />} />
           <Route path="drivers" element={<DriversPage />} />
           <Route path="pharmacists" element={<PharmacistsPage />} />
           <Route path="settings" element={<SettingsPage />} />
