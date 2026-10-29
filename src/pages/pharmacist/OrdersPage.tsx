@@ -8,6 +8,7 @@ import { getAuth } from '../../store/authStore'
 import { CreateOrderModal } from './CreateOrderModal'
 
 interface OrderItem {
+  id: string
   medicineId: string
   nameRu: string
   dosage: string
@@ -126,6 +127,28 @@ export function OrdersPage() {
     }
   }
 
+  async function updateItemQty(orderId: string, itemId: string, medicineId: string, quantity: number) {
+    try {
+      const updated = await api.patch(`/pharmacist/orders/${orderId}/items/${itemId}/qty`, { quantity })
+      // Update item quantity and recalculated total in local state
+      setCollecting((prev) => prev.map((o) =>
+        o.id === orderId ? {
+          ...o,
+          totalPrice: updated.data.totalPrice,
+          items: o.items.map((i) => i.id === itemId ? { ...i, quantity } : i),
+        } : o
+      ))
+      // Uncheck if zeroed out
+      if (quantity === 0) {
+        setChecked((prev) => {
+          const set = new Set(prev[orderId] ?? [])
+          set.delete(medicineId)
+          return { ...prev, [orderId]: set }
+        })
+      }
+    } catch { /* ignore */ }
+  }
+
   function toggleItem(orderId: string, medicineId: string) {
     setChecked((prev) => {
       const set = new Set(prev[orderId] ?? [])
@@ -233,7 +256,8 @@ export function OrdersPage() {
           <div className="space-y-3">
             {collecting.map((order) => {
               const checkedSet = checked[order.id] ?? new Set<string>()
-              const allChecked = order.items.every((i) => checkedSet.has(i.medicineId))
+              const activeItems = order.items.filter((i) => i.quantity > 0)
+              const allChecked = activeItems.length > 0 && activeItems.every((i) => checkedSet.has(i.medicineId))
 
               return (
                 <div key={order.id} className="bg-white rounded-xl border border-blue-200 p-5 shadow-sm">
@@ -247,27 +271,45 @@ export function OrdersPage() {
                     </span>
                   </div>
 
-                  <p className="text-sm text-gray-500 mb-3">{order.customer.name || order.customer.phone}</p>
+                  {/* Customer info + phone */}
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm text-gray-600">{order.customer.name || 'Клиент'}</p>
+                    {order.customer.phone && (
+                      <a href={`tel:${order.customer.phone}`}
+                        className="flex items-center gap-1.5 text-sm text-[#16a273] font-medium bg-[#dcf8ea] px-3 py-1 rounded-lg">
+                        📞 {order.customer.phone}
+                      </a>
+                    )}
+                  </div>
 
-                  <div className="space-y-1 mb-4">
+                  <div className="space-y-2 mb-4">
                     {order.items.map((item) => (
-                      <label
-                        key={item.medicineId}
-                        className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-gray-50"
-                      >
+                      <div key={item.id} className={`flex items-center gap-3 p-2 rounded-lg ${checkedSet.has(item.medicineId) ? 'bg-gray-50' : 'bg-white border border-gray-100'}`}>
                         <input
                           type="checkbox"
                           checked={checkedSet.has(item.medicineId)}
                           onChange={() => toggleItem(order.id, item.medicineId)}
-                          className="w-4 h-4 rounded accent-[#16a273]"
+                          className="w-4 h-4 rounded accent-[#16a273] shrink-0"
                         />
                         <span className={`text-sm flex-1 ${checkedSet.has(item.medicineId) ? 'line-through text-gray-400' : 'text-gray-700'}`}>
-                          {item.nameRu} {item.dosage} × {item.quantity}
+                          {item.nameRu} {item.dosage}
                         </span>
-                        <span className="text-sm text-gray-400">
+                        {/* Editable quantity */}
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            onClick={() => updateItemQty(order.id, item.id, item.medicineId, Math.max(0, item.quantity - 1))}
+                            className="w-6 h-6 rounded border border-gray-300 text-gray-600 hover:bg-gray-100 flex items-center justify-center text-xs"
+                          >−</button>
+                          <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
+                          <button
+                            onClick={() => updateItemQty(order.id, item.id, item.medicineId, item.quantity + 1)}
+                            className="w-6 h-6 rounded border border-gray-300 text-gray-600 hover:bg-gray-100 flex items-center justify-center text-xs"
+                          >+</button>
+                        </div>
+                        <span className="text-sm text-gray-400 w-24 text-right shrink-0">
                           {(item.unitPrice * item.quantity).toLocaleString()} сум
                         </span>
-                      </label>
+                      </div>
                     ))}
                   </div>
 
