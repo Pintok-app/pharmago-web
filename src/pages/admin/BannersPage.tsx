@@ -22,6 +22,18 @@ interface MedicineOption {
   form: string | null
 }
 
+async function deleteFromSupabase(imageUrl: string): Promise<void> {
+  try {
+    // URL format: .../storage/v1/object/public/medicine-images/filename.ext
+    const filename = imageUrl.split(`/public/${BUCKET}/`)[1]
+    if (!filename) return
+    await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}/${filename}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${SUPABASE_KEY}` },
+    })
+  } catch { /* ignore — banner is deleted from DB regardless */ }
+}
+
 async function uploadToSupabase(file: File): Promise<string> {
   const ext = file.name.split('.').pop() ?? 'jpg'
   const filename = `banner-${Date.now()}.${ext}`
@@ -121,7 +133,9 @@ export function BannersPage() {
 
   async function remove(id: string) {
     if (!confirm('Удалить баннер?')) return
+    const banner = banners.find(b => b.id === id)
     await api.delete(`/banners/${id}`)
+    if (banner?.imageUrl) await deleteFromSupabase(banner.imageUrl)
     load()
   }
 
