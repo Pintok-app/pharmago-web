@@ -104,7 +104,7 @@ export function BannersPage() {
   }
 
   async function add() {
-    if (!imageUrl) return
+    if (!imageUrl || !medicineId) return
     setBusy(true)
     try {
       await api.post('/banners', {
@@ -187,9 +187,9 @@ export function BannersPage() {
             <p className="text-xs text-gray-400 mt-1">Отображается поверх изображения снизу</p>
           </div>
 
-          {/* Medicine picker */}
+          {/* Medicine picker — required */}
           <div className="relative">
-            <label className="text-xs text-gray-500 mb-1 block">Лекарство (при нажатии откроется карточка)</label>
+            <label className="text-xs text-gray-500 mb-1 block">Лекарство * (при нажатии откроется карточка)</label>
             {medicineId ? (
               <div className="flex items-center gap-2 px-3 py-2 border border-[#16a273] rounded-lg bg-[#f0fdf8]">
                 <span className="text-sm text-gray-800 flex-1">💊 {medicineName}</span>
@@ -219,7 +219,7 @@ export function BannersPage() {
           </div>
 
           <div className="flex gap-2 pt-1">
-            <button onClick={add} disabled={!imageUrl || busy}
+            <button onClick={add} disabled={!imageUrl || !medicineId || busy}
               className="px-4 py-2 bg-[#16a273] text-white text-sm font-medium rounded-lg hover:bg-[#13916a] disabled:opacity-40">
               {busy ? 'Сохранение...' : 'Добавить баннер'}
             </button>
