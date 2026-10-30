@@ -66,10 +66,9 @@ export function BannersPage() {
     if (!q.trim()) { setMedResults([]); return }
     setMedLoading(true)
     try {
-      const r = await api.get<MedicineOption[]>(`/medicines?search=${encodeURIComponent(q)}&limit=8`)
-      // deduplicate by id (same medicine may appear for multiple pharmacies)
+      const r = await api.get<{ data: MedicineOption[] }>(`/medicines?search=${encodeURIComponent(q)}&limit=20`)
       const seen = new Set<string>()
-      const unique = r.data.filter(m => seen.has(m.id) ? false : seen.add(m.id))
+      const unique = r.data.data.filter(m => seen.has(m.id) ? false : seen.add(m.id))
       setMedResults(unique.slice(0, 8))
     } finally { setMedLoading(false) }
   }
