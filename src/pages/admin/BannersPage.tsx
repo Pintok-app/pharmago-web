@@ -12,7 +12,6 @@ interface Banner {
   imageUrl: string | null
   bgColor: string
   medicineId: string | null
-  searchQuery: string | null
   isActive: boolean
 }
 
@@ -22,8 +21,6 @@ interface MedicineOption {
   dosage: string | null
   form: string | null
 }
-
-const DEFAULT_COLORS = ['#16a273', '#2563eb', '#7c3aed', '#dc2626']
 
 async function uploadToSupabase(file: File): Promise<string> {
   const ext = file.name.split('.').pop() ?? 'jpg'
@@ -38,7 +35,7 @@ async function uploadToSupabase(file: File): Promise<string> {
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    throw new Error(err.message ?? 'Upload failed')
+    throw new Error(err.message ?? `Upload failed: ${res.status}`)
   }
   return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${filename}`
 }
@@ -49,7 +46,6 @@ export function BannersPage() {
   const [title, setTitle] = useState('')
   const [subtitle, setSubtitle] = useState('')
   const [imageUrl, setImageUrl] = useState('')
-  const [bgColor, setBgColor] = useState('#16a273')
   const [medicineId, setMedicineId] = useState('')
   const [medicineName, setMedicineName] = useState('')
   const [medSearch, setMedSearch] = useState('')
@@ -100,20 +96,20 @@ export function BannersPage() {
 
   function resetForm() {
     setTitle(''); setSubtitle(''); setImageUrl('')
-    setBgColor('#16a273'); setMedicineId(''); setMedicineName('')
+    setMedicineId(''); setMedicineName('')
     setMedSearch(''); setMedResults([])
     setShowForm(false)
   }
 
   async function add() {
-    if (!title.trim()) return
+    if (!title.trim() || !imageUrl) return
     setBusy(true)
     try {
       await api.post('/banners', {
         title: title.trim(),
         subtitle: subtitle.trim() || null,
-        imageUrl: imageUrl || null,
-        bgColor,
+        imageUrl,
+        bgColor: '#16a273',
         medicineId: medicineId || null,
         isActive: true,
       })
@@ -150,6 +146,37 @@ export function BannersPage() {
         <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
           <h2 className="font-medium text-gray-900">Новый баннер</h2>
 
+          {/* Image upload — required */}
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Изображение *</label>
+            {imageUrl ? (
+              <div className="relative w-full h-36 rounded-xl overflow-hidden border border-gray-200">
+                <img src={imageUrl} className="w-full h-full object-cover" />
+                <button onClick={() => setImageUrl('')}
+                  className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full text-sm flex items-center justify-center hover:bg-red-600 font-bold">
+                  ×
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => fileRef.current?.click()} disabled={uploading}
+                className="w-full h-36 border-2 border-dashed border-gray-300 rounded-xl text-sm text-gray-400 hover:border-[#16a273] hover:text-[#16a273] transition-colors disabled:opacity-40 flex flex-col items-center justify-center gap-1">
+                {uploading ? (
+                  <>
+                    <span className="text-2xl">⏳</span>
+                    <span>Загрузка...</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-2xl">📷</span>
+                    <span>Нажмите чтобы загрузить фото</span>
+                    <span className="text-xs">Рекомендуется 520 × 260 px</span>
+                  </>
+                )}
+              </button>
+            )}
+            <input ref={fileRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Заголовок *</label>
@@ -161,42 +188,18 @@ export function BannersPage() {
               <label className="text-xs text-gray-500 mb-1 block">Подзаголовок</label>
               <input value={subtitle} onChange={e => setSubtitle(e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#16a273]"
-                placeholder="Большой выбор" />
-            </div>
-          </div>
-
-          {/* Image upload */}
-          <div>
-            <label className="text-xs text-gray-500 mb-1 block">Изображение</label>
-            <div className="flex items-center gap-3">
-              {imageUrl && (
-                <div className="relative">
-                  <img src={imageUrl} className="w-24 h-14 object-cover rounded-lg border border-gray-200" />
-                  <button onClick={() => setImageUrl('')}
-                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600">
-                    ×
-                  </button>
-                </div>
-              )}
-              <div>
-                <input ref={fileRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
-                <button onClick={() => fileRef.current?.click()} disabled={uploading}
-                  className="px-3 py-2 border border-gray-300 text-sm text-gray-600 rounded-lg hover:bg-gray-50 disabled:opacity-40">
-                  {uploading ? 'Загрузка...' : imageUrl ? 'Заменить' : '📷 Загрузить фото'}
-                </button>
-                <p className="text-xs text-gray-400 mt-1">Рекомендуется 520 × 260 px</p>
-              </div>
+                placeholder="Скидки этой недели" />
             </div>
           </div>
 
           {/* Medicine picker */}
           <div className="relative">
-            <label className="text-xs text-gray-500 mb-1 block">Лекарство (при нажатии открывается карточка)</label>
+            <label className="text-xs text-gray-500 mb-1 block">Лекарство (при нажатии откроется карточка)</label>
             {medicineId ? (
               <div className="flex items-center gap-2 px-3 py-2 border border-[#16a273] rounded-lg bg-[#f0fdf8]">
-                <span className="text-sm text-gray-800 flex-1">{medicineName}</span>
+                <span className="text-sm text-gray-800 flex-1">💊 {medicineName}</span>
                 <button onClick={() => { setMedicineId(''); setMedicineName('') }}
-                  className="text-xs text-gray-400 hover:text-gray-600">✕</button>
+                  className="text-xs text-gray-400 hover:text-gray-600">✕ убрать</button>
               </div>
             ) : (
               <>
@@ -220,38 +223,10 @@ export function BannersPage() {
             )}
           </div>
 
-          {/* Color */}
-          <div>
-            <label className="text-xs text-gray-500 mb-2 block">Цвет фона {imageUrl ? '(используется если нет фото)' : ''}</label>
-            <div className="flex items-center gap-2">
-              {DEFAULT_COLORS.map(c => (
-                <button key={c} onClick={() => setBgColor(c)}
-                  className={`w-8 h-8 rounded-full border-2 ${bgColor === c ? 'border-gray-900 scale-110' : 'border-transparent'}`}
-                  style={{ backgroundColor: c }} />
-              ))}
-              <input type="color" value={bgColor} onChange={e => setBgColor(e.target.value)}
-                className="w-8 h-8 rounded-full border border-gray-300 cursor-pointer" />
-            </div>
-          </div>
-
-          {/* Preview */}
-          {title && (
-            <div>
-              <p className="text-xs text-gray-500 mb-1">Предпросмотр</p>
-              <div className="rounded-xl overflow-hidden h-24 flex items-end p-3"
-                style={{ backgroundColor: bgColor, backgroundImage: imageUrl ? `url(${imageUrl})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center' }}>
-                <div className="bg-black/30 px-2 py-1 rounded">
-                  <p className="font-bold text-white text-sm">{title}</p>
-                  {subtitle && <p className="text-white text-xs opacity-80">{subtitle}</p>}
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="flex gap-2">
-            <button onClick={add} disabled={!title.trim() || busy}
+          <div className="flex gap-2 pt-1">
+            <button onClick={add} disabled={!title.trim() || !imageUrl || busy}
               className="px-4 py-2 bg-[#16a273] text-white text-sm font-medium rounded-lg hover:bg-[#13916a] disabled:opacity-40">
-              {busy ? '...' : 'Добавить'}
+              {busy ? 'Сохранение...' : 'Добавить баннер'}
             </button>
             <button onClick={resetForm}
               className="px-4 py-2 border border-gray-200 text-sm text-gray-600 rounded-lg hover:bg-gray-50">
@@ -268,13 +243,11 @@ export function BannersPage() {
         )}
         {banners.map(b => (
           <div key={b.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden flex">
-            <div className="w-24 h-20 flex-shrink-0"
-              style={{ backgroundColor: b.bgColor, backgroundImage: b.imageUrl ? `url(${b.imageUrl})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center' }}>
-              {!b.imageUrl && (
-                <div className="w-full h-full flex items-end p-2">
-                  <p className="text-white text-xs font-bold leading-tight">{b.title}</p>
-                </div>
-              )}
+            <div className="w-28 h-20 flex-shrink-0 bg-gray-100">
+              {b.imageUrl
+                ? <img src={b.imageUrl} className="w-full h-full object-cover" />
+                : <div className="w-full h-full flex items-center justify-center text-gray-300 text-2xl">🖼️</div>
+              }
             </div>
             <div className="flex-1 p-3 min-w-0">
               <p className="font-medium text-gray-900 text-sm">{b.title}</p>
