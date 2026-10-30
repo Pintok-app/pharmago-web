@@ -43,7 +43,6 @@ async function uploadToSupabase(file: File): Promise<string> {
 export function BannersPage() {
   const [banners, setBanners] = useState<Banner[]>([])
   const [showForm, setShowForm] = useState(false)
-  const [title, setTitle] = useState('')
   const [subtitle, setSubtitle] = useState('')
   const [imageUrl, setImageUrl] = useState('')
   const [medicineId, setMedicineId] = useState('')
@@ -95,18 +94,18 @@ export function BannersPage() {
   }
 
   function resetForm() {
-    setTitle(''); setSubtitle(''); setImageUrl('')
+    setSubtitle(''); setImageUrl('')
     setMedicineId(''); setMedicineName('')
     setMedSearch(''); setMedResults([])
     setShowForm(false)
   }
 
   async function add() {
-    if (!title.trim() || !imageUrl) return
+    if (!imageUrl) return
     setBusy(true)
     try {
       await api.post('/banners', {
-        title: title.trim(),
+        title: subtitle.trim() || 'Баннер',
         subtitle: subtitle.trim() || null,
         imageUrl,
         bgColor: '#16a273',
@@ -177,19 +176,12 @@ export function BannersPage() {
             <input ref={fileRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Заголовок *</label>
-              <input value={title} onChange={e => setTitle(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#16a273]"
-                placeholder="Витамины" />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Подзаголовок</label>
-              <input value={subtitle} onChange={e => setSubtitle(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#16a273]"
-                placeholder="Скидки этой недели" />
-            </div>
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Текст на фото (необязательно)</label>
+            <input value={subtitle} onChange={e => setSubtitle(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#16a273]"
+              placeholder="Скидки этой недели" />
+            <p className="text-xs text-gray-400 mt-1">Отображается поверх изображения снизу</p>
           </div>
 
           {/* Medicine picker */}
@@ -224,7 +216,7 @@ export function BannersPage() {
           </div>
 
           <div className="flex gap-2 pt-1">
-            <button onClick={add} disabled={!title.trim() || !imageUrl || busy}
+            <button onClick={add} disabled={!imageUrl || busy}
               className="px-4 py-2 bg-[#16a273] text-white text-sm font-medium rounded-lg hover:bg-[#13916a] disabled:opacity-40">
               {busy ? 'Сохранение...' : 'Добавить баннер'}
             </button>
