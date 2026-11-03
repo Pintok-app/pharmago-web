@@ -8,10 +8,17 @@ interface Order {
   orderNumber: number
   status: string
   totalPrice: number
-  customer: { name: string; phone: string }
+  customer: { name: string | null; phone: string } | null
+  anonymousName?: string | null
+  anonymousPhone?: string | null
   items: Array<{ nameRu: string; quantity: number }>
   createdAt: string
   deliveredAt: string | null
+}
+
+function customerLabel(o: Order): string {
+  if (o.customer) return o.customer.name || o.customer.phone
+  return o.anonymousName || o.anonymousPhone || '📞 Телефонный заказ'
 }
 
 export function PharmacistHistoryPage() {
@@ -54,7 +61,7 @@ export function PharmacistHistoryPage() {
             {orders.map((order) => (
               <tr key={order.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3 font-medium text-gray-900">#{order.orderNumber}</td>
-                <td className="px-4 py-3 text-gray-600">{order.customer.name || order.customer.phone}</td>
+                <td className="px-4 py-3 text-gray-600">{customerLabel(order)}</td>
                 <td className="px-4 py-3 text-gray-500 max-w-xs truncate">
                   {order.items.map((i) => `${i.nameRu} ×${i.quantity}`).join(', ')}
                 </td>

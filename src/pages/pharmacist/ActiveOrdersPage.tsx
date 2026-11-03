@@ -17,9 +17,16 @@ interface Order {
   status: string
   totalPrice: number
   deliveryAddress: string | null
-  customer: { name: string; phone: string }
+  customer: { name: string | null; phone: string } | null
+  anonymousName?: string | null
+  anonymousPhone?: string | null
   driver: { name: string; phone: string } | null
   items: Array<{ nameRu: string; quantity: number }>
+}
+
+function customerLabel(o: Order): string {
+  if (o.customer) return o.customer.name || o.customer.phone
+  return o.anonymousName || o.anonymousPhone || '📞 Телефонный заказ'
 }
 
 export function ActiveOrdersPage() {
@@ -60,7 +67,7 @@ export function ActiveOrdersPage() {
             <StatusBadge status={order.status} />
           </div>
           <div className="text-sm text-gray-500 space-y-0.5 mb-3">
-            <p>Клиент: <span className="text-gray-700">{order.customer.name || order.customer.phone}</span></p>
+            <p>Клиент: <span className="text-gray-700">{customerLabel(order)}</span></p>
             {order.driver && (
               <p>Водитель: <span className="text-gray-700">{order.driver.name} · {order.driver.phone}</span></p>
             )}
