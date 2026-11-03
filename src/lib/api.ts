@@ -1,24 +1,59 @@
 import axios from 'axios'
+import { clearAuth, getAuth, saveAccessToken } from '../store/authStore'
 
-export const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
+export const API_URL = import.meta.env.VITE_API_URL ?? 'https://pharmago-api-production.up.railway.app'
 
 export const api = axios.create({ baseURL: API_URL })
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('pg_token')
+  const token = getAuth().token
   if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
 
+let isRefreshing = false
+let queue: Array<(token: string) => void> = []
+
 api.interceptors.response.use(
   (r) => r,
-  (err: unknown) => {
-    if (axios.isAxiosError(err) && err.response?.status === 401) {
-      const hadToken = !!localStorage.getItem('pg_token')
-      ;['pg_token', 'pg_role', 'pg_user'].forEach((k) => localStorage.removeItem(k))
-      // Only hard-redirect when a valid session expired, not during login itself
-      if (hadToken) window.location.href = '/login'
+  async (err: unknown) => {
+    if (!axios.isAxiosError(err) || err.response?.status !== 401) return Promise.reject(err)
+
+    const { refreshToken } = getAuth()
+    const isLoginRequest = err.config?.url?.includes('/auth/')
+
+    // No refresh token or this is a login request — redirect to login
+    if (!refreshToken || isLoginRequest) {
+      clearAuth()
+      window.location.href = '/login'
+      return Promise.reject(err)
     }
-    return Promise.reject(err)
+
+    // Queue up requests that arrive while we're already refreshing
+    if (isRefreshing) {
+      return new Promise((resolve, reject) => {
+        queue.push((token) => {
+          err.config!.headers!.Authorization = `Bearer ${token}`
+          resolve(api(err.config!))
+        })
+      })
+    }
+
+    isRefreshing = true
+    try {
+      const res = await axios.post(`${API_URL}/auth/refresh`, { refreshToken })
+      const newToken: string = res.data.accessToken
+      saveAccessToken(newToken)
+      queue.forEach((cb) => cb(newToken))
+      queue = []
+      err.config!.headers!.Authorization = `Bearer ${newToken}`
+      return api(err.config!)
+    } catch {
+      clearAuth()
+      window.location.href = '/login'
+      return Promise.reject(err)
+    } finally {
+      isRefreshing = false
+    }
   },
 )

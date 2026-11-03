@@ -8,25 +8,32 @@ export interface AuthUser {
 
 interface AuthState {
   token: string | null
+  refreshToken: string | null
   role: Role | null
   user: AuthUser | null
 }
 
-const K = { token: 'pg_token', role: 'pg_role', user: 'pg_user' }
+const K = { token: 'pg_token', refresh: 'pg_refresh', role: 'pg_role', user: 'pg_user' }
 
 export function getAuth(): AuthState {
   const raw = localStorage.getItem(K.user)
   return {
     token: localStorage.getItem(K.token),
+    refreshToken: localStorage.getItem(K.refresh),
     role: localStorage.getItem(K.role) as Role | null,
     user: raw ? (JSON.parse(raw) as AuthUser) : null,
   }
 }
 
-export function saveAuth(token: string, role: Role, user: AuthUser) {
-  localStorage.setItem(K.token, token)
+export function saveAuth(accessToken: string, role: Role, user: AuthUser, refreshToken?: string) {
+  localStorage.setItem(K.token, accessToken)
   localStorage.setItem(K.role, role)
   localStorage.setItem(K.user, JSON.stringify(user))
+  if (refreshToken) localStorage.setItem(K.refresh, refreshToken)
+}
+
+export function saveAccessToken(accessToken: string) {
+  localStorage.setItem(K.token, accessToken)
 }
 
 export function clearAuth() {

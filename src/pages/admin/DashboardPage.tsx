@@ -17,9 +17,16 @@ interface Order {
   orderNumber: number
   status: string
   totalPrice: number
-  customer: { name: string; phone: string }
+  customer: { name: string | null; phone: string } | null
+  anonymousName?: string | null
+  anonymousPhone?: string | null
   pharmacy: { name: string }
   createdAt: string
+}
+
+function customerLabel(o: Order): string {
+  if (o.customer) return o.customer.name || o.customer.phone
+  return o.anonymousName || o.anonymousPhone || '📞 Телефон'
 }
 
 interface OrdersResponse {
@@ -192,7 +199,7 @@ export function DashboardPage() {
             {orders.map((order) => (
               <tr key={order.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3 font-medium text-gray-900">#{order.orderNumber}</td>
-                <td className="px-4 py-3 text-gray-600">{order.customer.name || order.customer.phone}</td>
+                <td className="px-4 py-3 text-gray-600">{customerLabel(order)}</td>
                 <td className="px-4 py-3 text-gray-600">{order.pharmacy.name}</td>
                 <td className="px-4 py-3 text-right font-medium text-gray-900">{order.totalPrice.toLocaleString()}</td>
                 <td className="px-4 py-3"><StatusBadge status={order.status} /></td>

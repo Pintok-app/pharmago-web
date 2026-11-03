@@ -19,8 +19,8 @@ export function LoginPage() {
       let role: Role = 'pharmacist'
       const pharmacistRes = await api.post('/auth/pharmacist-login', { login, password }).catch(() => null)
       const res = pharmacistRes ?? (() => { role = 'admin'; return api.post('/auth/admin-login', { login, password }) })()
-      const { accessToken, user } = (await res).data as { accessToken: string; role: Role; user: AuthUser }
-      saveAuth(accessToken, role, user)
+      const { accessToken, refreshToken, user } = (await res).data as { accessToken: string; refreshToken: string; role: Role; user: AuthUser }
+      saveAuth(accessToken, role, user, refreshToken)
       nav(role === 'admin' ? '/admin/dashboard' : '/pharmacist/orders', { replace: true })
     } catch {
       setError('Неверный логин или пароль')
