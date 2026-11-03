@@ -7,8 +7,10 @@ interface Medicine {
   inventoryId: string
   nameRu: string
   dosage: string | null
-  price: number
-  quantity: number
+  price: number       // pack price
+  quantity: number    // packs in stock
+  packSize: number
+  canSellPiece: boolean
   pharmacyName: string
   pharmacyId: string
 }
@@ -16,14 +18,20 @@ interface Medicine {
 interface CartItem {
   medicineId: string
   name: string
-  quantity: number
-  price: number
+  packs: number
+  pieces: number
+  packSize: number
+  packPrice: number
+  piecePrice: number
 }
 
 interface Props {
   onClose(): void
   onCreated(): void
 }
+
+function cartQty(item: CartItem) { return item.packs * item.packSize + item.pieces }
+function cartPrice(item: CartItem) { return item.packs * item.packPrice + item.pieces * item.piecePrice }
 
 export function CreateOrderModal({ onClose, onCreated }: Props) {
   const [search, setSearch] = useState('')
@@ -48,23 +56,44 @@ export function CreateOrderModal({ onClose, onCreated }: Props) {
   }, [search, pharmacyId])
 
   function addToCart(m: Medicine) {
+    const packSize = Math.max(1, m.packSize ?? 1)
+    const packPrice = m.price
+    const piecePrice = packSize > 1 ? Math.ceil(packPrice / packSize) : packPrice
     setCart((prev) => {
-      const existing = prev.find((i) => i.medicineId === m.id)
-      if (existing) return prev.map((i) => i.medicineId === m.id ? { ...i, quantity: i.quantity + 1 } : i)
-      return [...prev, { medicineId: m.id, name: `${m.nameRu}${m.dosage ? ' ' + m.dosage : ''}`, quantity: 1, price: m.price }]
+      if (prev.find((i) => i.medicineId === m.id)) return prev
+      return [...prev, {
+        medicineId: m.id,
+        name: `${m.nameRu}${m.dosage ? ' ' + m.dosage : ''}`,
+        packs: packSize > 1 ? 1 : 0,
+        pieces: packSize > 1 ? 0 : 1,
+        packSize,
+        packPrice,
+        piecePrice,
+      }]
     })
     setSearch('')
     setResults([])
   }
 
-  function changeQty(medicineId: string, delta: number) {
-    setCart((prev) => prev
-      .map((i) => i.medicineId === medicineId ? { ...i, quantity: i.quantity + delta } : i)
-      .filter((i) => i.quantity > 0)
+  function changePacks(medicineId: string, delta: number) {
+    setCart(prev => prev
+      .map(i => i.medicineId === medicineId ? { ...i, packs: Math.max(0, i.packs + delta) } : i)
+      .filter(i => cartQty(i) > 0)
     )
   }
 
-  const total = cart.reduce((s, i) => s + i.price * i.quantity, 0)
+  function changePieces(medicineId: string, delta: number) {
+    setCart(prev => prev
+      .map(i => {
+        if (i.medicineId !== medicineId) return i
+        const maxPieces = i.packSize > 1 ? i.packSize - 1 : 999
+        return { ...i, pieces: Math.max(0, Math.min(i.pieces + delta, maxPieces)) }
+      })
+      .filter(i => cartQty(i) > 0)
+    )
+  }
+
+  const total = cart.reduce((s, i) => s + cartPrice(i), 0)
 
   async function submit(e: FormEvent) {
     e.preventDefault()
@@ -75,7 +104,7 @@ export function CreateOrderModal({ onClose, onCreated }: Props) {
     setSubmitting(true)
     try {
       await api.post('/pharmacist/orders/create', {
-        items: cart.map((i) => ({ medicineId: i.medicineId, quantity: i.quantity })),
+        items: cart.map((i) => ({ medicineId: i.medicineId, quantity: cartQty(i) })),
         deliveryAddress: address.trim(),
         anonymousPhone: phone.trim(),
         anonymousName: name.trim() || undefined,
@@ -120,7 +149,9 @@ export function CreateOrderModal({ onClose, onCreated }: Props) {
                       className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex justify-between items-center"
                     >
                       <span className="text-gray-800">{m.nameRu}{m.dosage ? ` ${m.dosage}` : ''}</span>
-                      <span className="text-gray-500 ml-2 shrink-0">{m.price.toLocaleString()} сум</span>
+                      <span className="text-gray-500 ml-2 shrink-0 text-xs">
+                        {m.price.toLocaleString()} сум{m.packSize > 1 ? `/уп (×${m.packSize})` : ''}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -131,16 +162,41 @@ export function CreateOrderModal({ onClose, onCreated }: Props) {
             {cart.length > 0 && (
               <div className="bg-gray-50 rounded-lg divide-y divide-gray-100">
                 {cart.map((item) => (
-                  <div key={item.medicineId} className="flex items-center justify-between px-3 py-2">
-                    <span className="text-sm text-gray-700 flex-1">{item.name}</span>
-                    <div className="flex items-center gap-2 ml-2">
-                      <button type="button" onClick={() => changeQty(item.medicineId, -1)}
-                        className="w-6 h-6 rounded-full bg-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-300 flex items-center justify-center">−</button>
-                      <span className="text-sm font-medium w-4 text-center">{item.quantity}</span>
-                      <button type="button" onClick={() => changeQty(item.medicineId, 1)}
-                        className="w-6 h-6 rounded-full bg-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-300 flex items-center justify-center">+</button>
+                  <div key={item.medicineId} className="px-3 py-2 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-700 font-medium">{item.name}</span>
+                      <span className="text-sm text-gray-500">{cartPrice(item).toLocaleString()} сум</span>
                     </div>
-                    <span className="text-sm text-gray-500 ml-3 w-24 text-right">{(item.price * item.quantity).toLocaleString()}</span>
+                    {item.packSize > 1 ? (
+                      <div className="flex gap-4 text-sm">
+                        <div className="flex items-center gap-1 text-gray-600">
+                          <span className="text-xs text-gray-400 w-14">Упак:</span>
+                          <button type="button" onClick={() => changePacks(item.medicineId, -1)}
+                            className="w-5 h-5 rounded bg-gray-200 hover:bg-gray-300 flex items-center justify-center text-xs">−</button>
+                          <span className="w-5 text-center font-medium">{item.packs}</span>
+                          <button type="button" onClick={() => changePacks(item.medicineId, 1)}
+                            className="w-5 h-5 rounded bg-gray-200 hover:bg-gray-300 flex items-center justify-center text-xs">+</button>
+                        </div>
+                        {item.piecePrice > 0 && (
+                          <div className="flex items-center gap-1 text-gray-600">
+                            <span className="text-xs text-gray-400 w-14">Штучно:</span>
+                            <button type="button" onClick={() => changePieces(item.medicineId, -1)}
+                              className="w-5 h-5 rounded bg-gray-200 hover:bg-gray-300 flex items-center justify-center text-xs">−</button>
+                            <span className="w-5 text-center font-medium">{item.pieces}</span>
+                            <button type="button" onClick={() => changePieces(item.medicineId, 1)}
+                              className="w-5 h-5 rounded bg-gray-200 hover:bg-gray-300 flex items-center justify-center text-xs">+</button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <button type="button" onClick={() => changePieces(item.medicineId, -1)}
+                          className="w-6 h-6 rounded-full bg-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-300 flex items-center justify-center">−</button>
+                        <span className="text-sm font-medium w-5 text-center">{item.pieces}</span>
+                        <button type="button" onClick={() => changePieces(item.medicineId, 1)}
+                          className="w-6 h-6 rounded-full bg-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-300 flex items-center justify-center">+</button>
+                      </div>
+                    )}
                   </div>
                 ))}
                 <div className="flex justify-between px-3 py-2">
@@ -154,38 +210,25 @@ export function CreateOrderModal({ onClose, onCreated }: Props) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Телефон клиента *</label>
-                <input
-                  type="text"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)}
                   placeholder="+998901234567"
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#16a273]"
-                  required
-                />
+                  required />
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Имя (необязательно)</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)}
                   placeholder="Иван"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#16a273]"
-                />
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#16a273]" />
               </div>
             </div>
 
-            {/* Address */}
             <div>
               <label className="block text-xs text-gray-500 mb-1">Адрес / ориентир *</label>
-              <input
-                type="text"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
+              <input type="text" value={address} onChange={(e) => setAddress(e.target.value)}
                 placeholder="ул. Центральная 7, 3 этаж, красная дверь"
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#16a273]"
-                required
-              />
+                required />
             </div>
 
             {error && <p className="text-sm text-red-600">{error}</p>}

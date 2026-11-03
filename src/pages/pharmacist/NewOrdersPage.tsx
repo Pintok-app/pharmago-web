@@ -20,9 +20,16 @@ interface Order {
   status: string
   totalPrice: number
   deliveryAddress: string | null
-  customer: { name: string; phone: string }
+  customer: { name: string | null; phone: string } | null
+  anonymousName?: string | null
+  anonymousPhone?: string | null
   items: OrderItem[]
   createdAt: string
+}
+
+function customerLabel(o: Order): string {
+  if (o.customer) return o.customer.name || o.customer.phone
+  return o.anonymousName || o.anonymousPhone || '📞 Телефонный заказ'
 }
 
 const REJECT_REASONS = ['Нет в наличии', 'Истёк срок годности', 'Рецептурный препарат', 'Другое']
@@ -119,7 +126,7 @@ export function NewOrdersPage() {
           </div>
 
           <p className="text-sm text-gray-500 mb-1">
-            Клиент: <span className="text-gray-700 font-medium">{order.customer.name || order.customer.phone}</span>
+            Клиент: <span className="text-gray-700 font-medium">{customerLabel(order)}</span>
           </p>
           {order.deliveryAddress && (
             <p className="text-sm text-gray-500 mb-3">Адрес: {order.deliveryAddress}</p>

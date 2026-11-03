@@ -3,11 +3,13 @@ import { StatusBadge } from '../../components/StatusBadge'
 import { api } from '../../lib/api'
 
 interface OrderItem {
+  id: string
   medicineId: string
   nameRu: string
   dosage: string
   quantity: number
   unitPrice: number
+  packSize: number
 }
 
 interface Order {
@@ -15,18 +17,34 @@ interface Order {
   orderNumber: number
   status: string
   totalPrice: number
-  customer: { name: string; phone: string }
+  customer: { name: string | null; phone: string } | null
+  anonymousName?: string | null
+  anonymousPhone?: string | null
   items: OrderItem[]
+}
+
+function customerLabel(o: Order): string {
+  if (o.customer) return o.customer.name || o.customer.phone
+  return o.anonymousName || o.anonymousPhone || '📞 Телефонный заказ'
 }
 
 export function CollectingPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [checked, setChecked] = useState<Record<string, Set<string>>>({})
+  const [qtys, setQtys] = useState<Record<string, Record<string, number>>>({})
   const [loading, setLoading] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     api.get<Order[]>('/pharmacist/orders').then((r) => {
-      setOrders(r.data.filter((o) => o.status === 'PHARMACY_COLLECTING'))
+      const collecting = r.data.filter((o) => o.status === 'PHARMACY_COLLECTING')
+      setOrders(collecting)
+      // init qty state from current item quantities
+      const initQtys: Record<string, Record<string, number>> = {}
+      collecting.forEach(o => {
+        initQtys[o.id] = {}
+        o.items.forEach(i => { initQtys[o.id][i.id] = i.quantity })
+      })
+      setQtys(initQtys)
     }).catch(() => {})
   }, [])
 
@@ -37,6 +55,17 @@ export function CollectingPage() {
       else set.add(medicineId)
       return { ...prev, [orderId]: set }
     })
+  }
+
+  async function changeQty(orderId: string, item: OrderItem, newQty: number) {
+    if (newQty < 1) return
+    setQtys(prev => ({ ...prev, [orderId]: { ...prev[orderId], [item.id]: newQty } }))
+    try {
+      await api.patch(`/pharmacist/orders/${orderId}/items/${item.id}/qty`, { quantity: newQty })
+    } catch {
+      // revert on error
+      setQtys(prev => ({ ...prev, [orderId]: { ...prev[orderId], [item.id]: item.quantity } }))
+    }
   }
 
   async function confirmOrder(id: string) {
@@ -64,6 +93,7 @@ export function CollectingPage() {
       {orders.map((order) => {
         const checkedSet = checked[order.id] ?? new Set<string>()
         const allChecked = order.items.every((i) => checkedSet.has(i.medicineId))
+        const orderQtys = qtys[order.id] ?? {}
 
         return (
           <div key={order.id} className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
@@ -71,28 +101,44 @@ export function CollectingPage() {
               <span className="font-semibold text-gray-900">Заказ #{order.orderNumber}</span>
               <StatusBadge status={order.status} />
             </div>
-            <p className="text-sm text-gray-500 mb-4">{order.customer.name || order.customer.phone}</p>
+            <p className="text-sm text-gray-500 mb-4">{customerLabel(order)}</p>
 
-            <div className="space-y-1 mb-4">
-              {order.items.map((item) => (
-                <label
-                  key={item.medicineId}
-                  className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-gray-50"
-                >
-                  <input
-                    type="checkbox"
-                    checked={checkedSet.has(item.medicineId)}
-                    onChange={() => toggleItem(order.id, item.medicineId)}
-                    className="w-4 h-4 rounded accent-[#16a273]"
-                  />
-                  <span className={`text-sm flex-1 ${checkedSet.has(item.medicineId) ? 'line-through text-gray-400' : 'text-gray-700'}`}>
-                    {item.nameRu} {item.dosage} × {item.quantity}
-                  </span>
-                  <span className="text-sm text-gray-500">
-                    {(item.unitPrice * item.quantity).toLocaleString()} сум
-                  </span>
-                </label>
-              ))}
+            <div className="space-y-2 mb-4">
+              {order.items.map((item) => {
+                const qty = orderQtys[item.id] ?? item.quantity
+                const isChecked = checkedSet.has(item.medicineId)
+                return (
+                  <div key={item.medicineId} className={`flex items-center gap-3 p-2 rounded-lg ${isChecked ? 'bg-gray-50' : ''}`}>
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => toggleItem(order.id, item.medicineId)}
+                      className="w-4 h-4 rounded accent-[#16a273] flex-shrink-0"
+                    />
+                    <span className={`text-sm flex-1 ${isChecked ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                      {item.nameRu} {item.dosage}
+                    </span>
+                    {/* Qty editor */}
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => changeQty(order.id, item, qty - 1)}
+                        className="w-6 h-6 rounded border border-gray-300 text-gray-600 text-sm flex items-center justify-center hover:bg-gray-100 disabled:opacity-40"
+                        disabled={qty <= 1}
+                      >−</button>
+                      <span className="text-sm font-medium w-6 text-center">{qty}</span>
+                      <button
+                        type="button"
+                        onClick={() => changeQty(order.id, item, qty + 1)}
+                        className="w-6 h-6 rounded border border-gray-300 text-gray-600 text-sm flex items-center justify-center hover:bg-gray-100"
+                      >+</button>
+                    </div>
+                    <span className="text-sm text-gray-500 w-24 text-right">
+                      {(item.unitPrice * qty).toLocaleString()} сум
+                    </span>
+                  </div>
+                )
+              })}
             </div>
 
             <div className="flex items-center justify-between pt-3 border-t border-gray-100">
@@ -104,7 +150,7 @@ export function CollectingPage() {
                 disabled={!allChecked || !!loading[order.id]}
                 className="px-5 py-1.5 rounded-lg bg-[#16a273] text-white text-sm font-medium hover:bg-[#13916a] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                {loading[order.id] ? '...' : 'Готово'}
+                {loading[order.id] ? '...' : 'Готово к выдаче'}
               </button>
             </div>
           </div>
