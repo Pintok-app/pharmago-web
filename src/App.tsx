@@ -12,6 +12,8 @@ import { BannersPage } from './pages/admin/BannersPage'
 import { DriversPage } from './pages/admin/DriversPage'
 import { PharmacistsPage } from './pages/admin/PharmacistsPage'
 import { SettingsPage } from './pages/admin/SettingsPage'
+import { PrivacyPage } from './pages/PrivacyPage'
+import { TermsPage } from './pages/TermsPage'
 
 export default function App() {
   return (
@@ -50,6 +52,8 @@ export default function App() {
           <Route path="settings" element={<SettingsPage />} />
         </Route>
 
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
