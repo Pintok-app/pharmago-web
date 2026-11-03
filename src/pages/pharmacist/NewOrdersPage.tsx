@@ -40,6 +40,7 @@ export function NewOrdersPage() {
   const [rejectReason, setRejectReason] = useState('Нет в наличии')
   const [rejectOther, setRejectOther] = useState('')
   const [loading, setLoading] = useState<Record<string, boolean>>({})
+  const [sseConnected, setSseConnected] = useState(true)
   const beep = useSound()
   const soundTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -54,7 +55,9 @@ export function NewOrdersPage() {
     fetchEventSource(`${API_URL}/pharmacist/orders/stream`, {
       headers: { Authorization: `Bearer ${token ?? ''}` },
       signal: ctrl.signal,
+      onopen: async () => { setSseConnected(true) },
       onmessage(ev) {
+        setSseConnected(true)
         try {
           const data = JSON.parse(ev.data) as { type: string; order: Order }
           if (data.type === 'NEW_ORDER') {
@@ -63,7 +66,11 @@ export function NewOrdersPage() {
           }
         } catch { /* ignore malformed event */ }
       },
-      onerror(err) { throw err },
+      onerror() {
+        setSseConnected(false)
+        // Return undefined to let fetchEventSource retry automatically (don't throw)
+        return undefined
+      },
     }).catch(() => {})
 
     return () => ctrl.abort()
@@ -113,6 +120,12 @@ export function NewOrdersPage() {
 
   return (
     <div className="space-y-4 max-w-3xl">
+      {!sseConnected && (
+        <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm font-medium">
+          <span className="animate-pulse">⚠️</span>
+          Соединение потеряно — переподключение... Обновите страницу если это не исчезнет.
+        </div>
+      )}
       <h1 className="text-lg font-semibold text-gray-900">Новые заказы ({orders.length})</h1>
 
       {orders.map((order) => (
