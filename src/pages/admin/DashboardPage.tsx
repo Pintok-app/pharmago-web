@@ -20,7 +20,7 @@ interface Order {
   customer: { name: string | null; phone: string } | null
   anonymousName?: string | null
   anonymousPhone?: string | null
-  pharmacy: { name: string }
+  pharmacy: { name: string } | null
   createdAt: string
 }
 
@@ -31,9 +31,8 @@ function customerLabel(o: Order): string {
 
 interface OrdersResponse {
   data: Order[]
-  total: number
-  page: number
-  limit: number
+  total?: number
+  meta?: { total: number; page: number; limit: number; totalPages: number }
 }
 
 const STATUSES: { value: string; label: string }[] = [
@@ -74,7 +73,7 @@ export function DashboardPage() {
     if (orderNumber) params.orderNumber = orderNumber
 
     api.get<OrdersResponse>('/admin/orders', { params })
-      .then((r) => { setOrders(r.data.data); setTotal(r.data.total) })
+      .then((r) => { setOrders(r.data.data); setTotal(r.data.meta?.total ?? r.data.total ?? 0) })
       .catch(() => {})
   }, [page, date, dateFrom, dateTo, status, orderNumber, useDateRange])
 
@@ -200,7 +199,7 @@ export function DashboardPage() {
               <tr key={order.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3 font-medium text-gray-900">#{order.orderNumber}</td>
                 <td className="px-4 py-3 text-gray-600">{customerLabel(order)}</td>
-                <td className="px-4 py-3 text-gray-600">{order.pharmacy.name}</td>
+                <td className="px-4 py-3 text-gray-600">{order.pharmacy?.name ?? '—'}</td>
                 <td className="px-4 py-3 text-right font-medium text-gray-900">{order.totalPrice.toLocaleString()}</td>
                 <td className="px-4 py-3"><StatusBadge status={order.status} /></td>
                 <td className="px-4 py-3 text-gray-500">{format(new Date(order.createdAt), 'dd.MM HH:mm')}</td>
