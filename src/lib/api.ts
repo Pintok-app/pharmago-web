@@ -22,8 +22,11 @@ api.interceptors.response.use(
     const { refreshToken } = getAuth()
     const isLoginRequest = err.config?.url?.includes('/auth/')
 
-    // No refresh token or this is a login request — redirect to login
-    if (!refreshToken || isLoginRequest) {
+    // Auth endpoint failures (login/refresh attempts) — just reject, let the form handle it
+    if (isLoginRequest) return Promise.reject(err)
+
+    // No refresh token and not on a login page — clear session and redirect
+    if (!refreshToken) {
       clearAuth()
       window.location.href = '/login'
       return Promise.reject(err)
