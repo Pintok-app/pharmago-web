@@ -5,6 +5,6 @@ import { getAuth, type Role } from '../store/authStore'
 export function ProtectedRoute({ children, role }: { children: ReactNode; role: Role }) {
   const auth = getAuth()
   if (!auth.token) return <Navigate to="/login" replace />
-  if (auth.role !== role) return <Navigate to="/login" replace />
+  if (auth.role !== role) return <Navigate to={auth.role === 'admin' ? '/admin/dashboard' : '/pharmacist/orders'} replace />
   return <>{children}</>
 }

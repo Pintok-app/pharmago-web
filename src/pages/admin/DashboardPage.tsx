@@ -1,5 +1,6 @@
 import { format } from 'date-fns'
 import { useCallback, useEffect, useState } from 'react'
+import { ErrorBanner } from '../../components/ErrorBanner'
 import { StatusBadge } from '../../components/StatusBadge'
 import { api } from '../../lib/api'
 
@@ -59,7 +60,14 @@ export function DashboardPage() {
   const [dateTo, setDateTo] = useState('')
   const [status, setStatus] = useState('')
   const [orderNumber, setOrderNumber] = useState('')
+  const [debouncedOrderNumber, setDebouncedOrderNumber] = useState(orderNumber)
   const [useDateRange, setUseDateRange] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedOrderNumber(orderNumber), 400)
+    return () => clearTimeout(id)
+  }, [orderNumber])
 
   const loadOrders = useCallback(() => {
     const params: Record<string, string> = { page: String(page), limit: String(PAGE_SIZE) }
@@ -70,15 +78,15 @@ export function DashboardPage() {
       params.date = date
     }
     if (status) params.status = status
-    if (orderNumber) params.orderNumber = orderNumber
+    if (debouncedOrderNumber) params.orderNumber = debouncedOrderNumber
 
     api.get<OrdersResponse>('/admin/orders', { params })
       .then((r) => { setOrders(r.data.data); setTotal(r.data.meta?.total ?? r.data.total ?? 0) })
-      .catch(() => {})
-  }, [page, date, dateFrom, dateTo, status, orderNumber, useDateRange])
+      .catch(() => { setError('Не удалось загрузить данные') })
+  }, [page, date, dateFrom, dateTo, status, debouncedOrderNumber, useDateRange])
 
   useEffect(() => {
-    api.get<Stats>('/admin/stats').then((r) => setStats(r.data)).catch(() => {})
+    api.get<Stats>('/admin/stats').then((r) => setStats(r.data)).catch(() => { setError('Не удалось загрузить данные') })
   }, [])
 
   useEffect(() => { loadOrders() }, [loadOrders])
@@ -88,6 +96,8 @@ export function DashboardPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-semibold text-gray-900">Дашборд</h1>
+
+      <ErrorBanner message={error} onRetry={() => { setError(null); loadOrders() }} />
 
       {stats && (
         <>
@@ -211,16 +221,10 @@ export function DashboardPage() {
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
             <span className="text-sm text-gray-500">Всего: {total}</span>
-            <div className="flex gap-1">
-              {Array.from({ length: Math.min(totalPages, 10) }, (_, i) => i + 1).map((p) => (
-                <button key={p} onClick={() => setPage(p)}
-                  className={`px-3 py-1 rounded-lg text-sm transition-colors ${
-                    page === p ? 'bg-[#16a273] text-white' : 'text-gray-600 hover:bg-gray-100'
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
+            <div className="flex items-center gap-3">
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50">← Пред.</button>
+              <span className="text-sm text-gray-600">Стр. {page} из {totalPages}</span>
+              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50">След. →</button>
             </div>
           </div>
         )}

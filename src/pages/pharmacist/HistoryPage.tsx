@@ -1,5 +1,6 @@
 import { format } from 'date-fns'
 import { useEffect, useState } from 'react'
+import { ErrorBanner } from '../../components/ErrorBanner'
 import { StatusBadge } from '../../components/StatusBadge'
 import { api } from '../../lib/api'
 
@@ -24,15 +25,18 @@ function customerLabel(o: Order): string {
 export function PharmacistHistoryPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     api.get<Order[]>('/pharmacist/orders/history')
       .then((r) => setOrders(r.data))
-      .catch(() => {})
+      .catch(() => setError('Не удалось загрузить историю заказов'))
       .finally(() => setLoading(false))
   }, [])
 
   if (loading) return <div className="py-12 text-center text-gray-400">Загрузка...</div>
+
+  if (error) return <ErrorBanner message={error} />
 
   if (orders.length === 0) {
     return (
@@ -45,6 +49,7 @@ export function PharmacistHistoryPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-lg font-semibold text-gray-900">История заказов</h1>
+      {/* TODO: add pagination when history grows */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
         <table className="w-full text-sm min-w-[480px]">
           <thead className="bg-gray-50 border-b border-gray-200">

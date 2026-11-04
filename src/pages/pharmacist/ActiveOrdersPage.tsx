@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ErrorBanner } from '../../components/ErrorBanner'
 import { StatusBadge } from '../../components/StatusBadge'
 import { api } from '../../lib/api'
 
@@ -32,18 +33,22 @@ function customerLabel(o: Order): string {
 export function ActiveOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   function load() {
     setLoading(true)
+    setError(null)
     api.get<Order[]>('/pharmacist/orders')
       .then((r) => setOrders(r.data.filter((o) => ACTIVE_STATUSES.has(o.status))))
-      .catch(() => {})
+      .catch(() => setError('Не удалось загрузить активные заказы'))
       .finally(() => setLoading(false))
   }
 
   useEffect(() => { load() }, [])
 
   if (loading) return <div className="py-12 text-center text-gray-400">Загрузка...</div>
+
+  if (error) return <ErrorBanner message={error} />
 
   if (orders.length === 0) {
     return (

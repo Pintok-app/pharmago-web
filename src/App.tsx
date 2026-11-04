@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { ProtectedRoute } from './components/ProtectedRoute'
+import { getAuth } from './store/authStore'
 import { LoginPage } from './pages/LoginPage'
 import { PharmacistLayout } from './pages/pharmacist/PharmacistLayout'
 import { OrdersPage } from './pages/pharmacist/OrdersPage'
@@ -14,6 +15,13 @@ import { PharmacistsPage } from './pages/admin/PharmacistsPage'
 import { SettingsPage } from './pages/admin/SettingsPage'
 import { PrivacyPage } from './pages/PrivacyPage'
 import { TermsPage } from './pages/TermsPage'
+
+function CatchAll() {
+  const auth = getAuth()
+  if (auth.token && auth.role === 'admin') return <Navigate to="/admin/dashboard" replace />
+  if (auth.token && auth.role === 'pharmacist') return <Navigate to="/pharmacist/orders" replace />
+  return <Navigate to="/login" replace />
+}
 
 export default function App() {
   return (
@@ -54,7 +62,7 @@ export default function App() {
 
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<CatchAll />} />
       </Routes>
     </BrowserRouter>
   )

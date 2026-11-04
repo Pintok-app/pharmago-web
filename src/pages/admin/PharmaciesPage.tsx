@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../lib/api'
+import { ErrorBanner } from '../../components/ErrorBanner'
 
 interface SyncLog { status: string; finishedAt: string | null; itemsProcessed: number }
 interface Pharmacy {
@@ -23,12 +24,13 @@ function SyncBadge({ logs }: { logs: SyncLog[] }) {
 export function PharmaciesPage() {
   const [cities, setCities] = useState<City[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<Record<string, boolean>>({})
   const [closing, setClosing] = useState<string | null>(null)
   const [closeReason, setCloseReason] = useState('')
 
   useEffect(() => {
-    api.get<City[]>('/admin/cities').then(r => setCities(r.data)).finally(() => setLoading(false))
+    api.get<City[]>('/admin/cities').then(r => setCities(r.data)).catch((e) => setError(e?.response?.data?.message ?? 'Ошибка загрузки')).finally(() => setLoading(false))
   }, [])
 
   const set = (key: string, val: boolean) => setBusy(b => ({ ...b, [key]: val }))
@@ -77,6 +79,7 @@ export function PharmaciesPage() {
 
   return (
     <div className="max-w-2xl space-y-8">
+      <ErrorBanner message={error} />
       <h1 className="text-xl font-semibold text-gray-900">Аптеки</h1>
 
       {cities.map(city => (

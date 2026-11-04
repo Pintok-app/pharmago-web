@@ -1,7 +1,8 @@
-import { type FormEvent, useEffect, useState } from 'react'
+import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import { api } from '../../lib/api'
+import { ErrorBanner } from '../../components/ErrorBanner'
 
-interface City { id: string; name: string }
+interface CityWithPharmacies { id: string; name: string; isActive: boolean; pharmacies: Pharmacy[] }
 interface Pharmacy { id: string; name: string }
 interface Pharmacist {
   id: string
@@ -15,6 +16,7 @@ export function PharmacistsPage() {
   const [selectedPharmacy, setSelectedPharmacy] = useState('')
   const [pharmacists, setPharmacists] = useState<Pharmacist[]>([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [newName, setNewName] = useState('')
   const [newLogin, setNewLogin] = useState('')
@@ -22,37 +24,42 @@ export function PharmacistsPage() {
   const [newPharmacyId, setNewPharmacyId] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  useEffect(() => {
-    api.get<City[]>('/cities').then((r) => {
-      const allPharmacies: Pharmacy[] = []
-      Promise.all(
-        r.data.map((city) =>
-          api.get<Pharmacy[]>(`/cities/${city.id}/pharmacies`)
-            .then((rp) => allPharmacies.push(...rp.data))
-            .catch(() => {})
-        )
-      ).then(() => {
+  const loadPharmacies = useCallback(() => {
+    setError(null)
+    api.get<CityWithPharmacies[]>('/admin/cities')
+      .then((r) => {
+        const allPharmacies = r.data.flatMap((city) => city.pharmacies)
         setPharmacies(allPharmacies)
         if (allPharmacies.length > 0) {
           setSelectedPharmacy(allPharmacies[0].id)
           setNewPharmacyId(allPharmacies[0].id)
         }
       })
-    }).catch(() => {})
+      .catch(() => setError('Не удалось загрузить список аптек'))
   }, [])
 
   useEffect(() => {
+    loadPharmacies()
+  }, [loadPharmacies])
+
+  const loadPharmacists = useCallback(() => {
     if (!selectedPharmacy) return
     setLoading(true)
+    setError(null)
     api.get<Pharmacist[]>('/admin/pharmacists', { params: { pharmacyId: selectedPharmacy } })
       .then((r) => setPharmacists(r.data))
-      .catch(() => {})
+      .catch(() => setError('Не удалось загрузить список фармацевтов'))
       .finally(() => setLoading(false))
   }, [selectedPharmacy])
+
+  useEffect(() => {
+    loadPharmacists()
+  }, [loadPharmacists])
 
   async function createPharmacist(e: FormEvent) {
     e.preventDefault()
     setSubmitting(true)
+    setError(null)
     try {
       await api.post('/admin/pharmacists', {
         name: newName,
@@ -64,6 +71,8 @@ export function PharmacistsPage() {
       setNewName(''); setNewLogin(''); setNewPassword('')
       const r = await api.get<Pharmacist[]>('/admin/pharmacists', { params: { pharmacyId: selectedPharmacy } })
       setPharmacists(r.data)
+    } catch {
+      setError('Не удалось создать фармацевта')
     } finally {
       setSubmitting(false)
     }
@@ -80,6 +89,8 @@ export function PharmacistsPage() {
           + Добавить
         </button>
       </div>
+
+      <ErrorBanner message={error} onRetry={selectedPharmacy ? loadPharmacists : loadPharmacies} />
 
       <div className="flex gap-2 flex-wrap">
         {pharmacies.map((p) => (

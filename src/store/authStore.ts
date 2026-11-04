@@ -17,11 +17,17 @@ const K = { token: 'pg_token', refresh: 'pg_refresh', role: 'pg_role', user: 'pg
 
 export function getAuth(): AuthState {
   const raw = localStorage.getItem(K.user)
+  let user: AuthUser | null = null
+  try {
+    user = raw ? (JSON.parse(raw) as AuthUser) : null
+  } catch {
+    user = null
+  }
   return {
     token: localStorage.getItem(K.token),
     refreshToken: localStorage.getItem(K.refresh),
     role: localStorage.getItem(K.role) as Role | null,
-    user: raw ? (JSON.parse(raw) as AuthUser) : null,
+    user,
   }
 }
 

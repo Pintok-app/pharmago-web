@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import { api } from '../../lib/api'
+import { ErrorBanner } from '../../components/ErrorBanner'
 
 interface City { id: string; name: string }
 interface Driver {
@@ -21,6 +22,7 @@ export function DriversPage() {
   const [newPhone, setNewPhone] = useState('')
   const [newCityId, setNewCityId] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     api.get<City[]>('/cities').then((r) => {
@@ -29,7 +31,7 @@ export function DriversPage() {
         setSelectedCity(r.data[0].id)
         setNewCityId(r.data[0].id)
       }
-    }).catch(() => {})
+    }).catch((e) => setError(e?.response?.data?.message ?? 'Ошибка загрузки'))
   }, [])
 
   useEffect(() => {
@@ -37,7 +39,7 @@ export function DriversPage() {
     setLoading(true)
     api.get<Driver[]>('/admin/drivers', { params: { cityId: selectedCity } })
       .then((r) => setDrivers(r.data))
-      .catch(() => {})
+      .catch((e) => setError(e?.response?.data?.message ?? 'Ошибка загрузки'))
       .finally(() => setLoading(false))
   }, [selectedCity])
 
@@ -68,6 +70,7 @@ export function DriversPage() {
 
   return (
     <div className="space-y-5">
+      <ErrorBanner message={error} />
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-gray-900">Водители</h1>
         <button

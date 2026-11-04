@@ -1,153 +1,28 @@
-import { fetchEventSource } from '@microsoft/fetch-event-source'
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { CountdownTimer } from '../../components/CountdownTimer'
+import { ErrorBanner } from '../../components/ErrorBanner'
 import { StatusBadge } from '../../components/StatusBadge'
-import { useSound } from '../../hooks/useSound'
-import { api, API_URL } from '../../lib/api'
-import { getAuth } from '../../store/authStore'
+import { usePharmacistOrders } from '../../hooks/usePharmacistOrders'
 import { CreateOrderModal } from './CreateOrderModal'
-
-interface OrderItem {
-  id: string
-  medicineId: string
-  nameRu: string
-  dosage: string
-  quantity: number
-  unitPrice: number
-}
-
-interface Order {
-  id: string
-  orderNumber: number
-  status: string
-  totalPrice: number
-  deliveryAddress: string | null
-  customer: { name: string; phone: string }
-  items: OrderItem[]
-  createdAt: string
-}
-
-const REJECT_REASONS = ['Нет в наличии', 'Истёк срок годности', 'Рецептурный препарат', 'Другое']
+import { RejectOrderModal } from './RejectOrderModal'
 
 export function OrdersPage() {
-  const [pending, setPending] = useState<Order[]>([])
-  const [collecting, setCollecting] = useState<Order[]>([])
+  const {
+    pending,
+    collecting,
+    loading,
+    error,
+    actionLoading,
+    rejectOrder,
+    startCollecting,
+    confirmOrder,
+    updateItemQty,
+    refetch,
+  } = usePharmacistOrders()
+
   const [checked, setChecked] = useState<Record<string, Set<string>>>({})
   const [rejectId, setRejectId] = useState<string | null>(null)
-  const [rejectReason, setRejectReason] = useState('Нет в наличии')
-  const [rejectOther, setRejectOther] = useState('')
-  const [loading, setLoading] = useState<Record<string, boolean>>({})
-  const beep = useSound()
-  const soundTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [showCreate, setShowCreate] = useState(false)
-
-  function classifyOrders(orders: Order[]) {
-    setPending(orders.filter((o) => o.status === 'AWAITING_PHARMACY'))
-    setCollecting(orders.filter((o) => o.status === 'PHARMACY_COLLECTING'))
-  }
-
-  useEffect(() => {
-    api.get<Order[]>('/pharmacist/orders').then((r) => classifyOrders(r.data)).catch(() => {})
-
-    const token = getAuth().token
-    const ctrl = new AbortController()
-
-    fetchEventSource(`${API_URL}/pharmacist/orders/stream`, {
-      headers: { Authorization: `Bearer ${token ?? ''}` },
-      signal: ctrl.signal,
-      onmessage(ev) {
-        try {
-          const data = JSON.parse(ev.data) as { type: string; order: Order }
-          if (data.type === 'NEW_ORDER') {
-            setPending((prev) =>
-              prev.some((o) => o.id === data.order.id)
-                ? prev
-                : [data.order, ...prev]
-            )
-            beep()
-          }
-        } catch { /* ignore */ }
-      },
-      onerror(err) { throw err },
-    }).catch(() => {})
-
-    return () => ctrl.abort()
-  }, [beep])
-
-  // Beep every 30 s while there are pending orders
-  useEffect(() => {
-    if (soundTimerRef.current) clearInterval(soundTimerRef.current)
-    if (pending.length > 0) {
-      soundTimerRef.current = setInterval(beep, 30_000)
-    }
-    return () => { if (soundTimerRef.current) clearInterval(soundTimerRef.current) }
-  }, [pending.length, beep])
-
-  async function startCollecting(id: string) {
-    setLoading((l) => ({ ...l, [id]: true }))
-    try {
-      await api.patch(`/pharmacist/orders/${id}/collecting`)
-      // Capture the order BEFORE removing it from pending (closure, not inside updater)
-      const movedOrder = pending.find((o) => o.id === id)
-      // Two separate setState calls — no side effects inside updaters (StrictMode safe)
-      setPending((prev) => prev.filter((o) => o.id !== id))
-      if (movedOrder) {
-        setCollecting((prev) =>
-          prev.some((o) => o.id === movedOrder.id)
-            ? prev
-            : [...prev, { ...movedOrder, status: 'PHARMACY_COLLECTING' }]
-        )
-      }
-    } finally {
-      setLoading((l) => ({ ...l, [id]: false }))
-    }
-  }
-
-  async function confirmOrder(id: string) {
-    setLoading((l) => ({ ...l, [id]: true }))
-    try {
-      await api.patch(`/pharmacist/orders/${id}/confirm`)
-      setCollecting((prev) => prev.filter((o) => o.id !== id))
-    } finally {
-      setLoading((l) => ({ ...l, [id]: false }))
-    }
-  }
-
-  async function confirmReject() {
-    if (!rejectId) return
-    const id = rejectId
-    const reason = rejectReason === 'Другое' ? rejectOther : rejectReason
-    setLoading((l) => ({ ...l, [id]: true }))
-    try {
-      await api.patch(`/pharmacist/orders/${id}/reject`, { reason })
-      setPending((prev) => prev.filter((o) => o.id !== id))
-      setRejectId(null)
-    } finally {
-      setLoading((l) => ({ ...l, [id]: false }))
-    }
-  }
-
-  async function updateItemQty(orderId: string, itemId: string, medicineId: string, quantity: number) {
-    try {
-      const updated = await api.patch(`/pharmacist/orders/${orderId}/items/${itemId}/qty`, { quantity })
-      // Update item quantity and recalculated total in local state
-      setCollecting((prev) => prev.map((o) =>
-        o.id === orderId ? {
-          ...o,
-          totalPrice: updated.data.totalPrice,
-          items: o.items.map((i) => i.id === itemId ? { ...i, quantity } : i),
-        } : o
-      ))
-      // Uncheck if zeroed out
-      if (quantity === 0) {
-        setChecked((prev) => {
-          const set = new Set(prev[orderId] ?? [])
-          set.delete(medicineId)
-          return { ...prev, [orderId]: set }
-        })
-      }
-    } catch { /* ignore */ }
-  }
 
   function toggleItem(orderId: string, medicineId: string) {
     setChecked((prev) => {
@@ -158,7 +33,28 @@ export function OrdersPage() {
     })
   }
 
+  async function handleUpdateItemQty(
+    orderId: string,
+    itemId: string,
+    medicineId: string,
+    quantity: number,
+  ) {
+    await updateItemQty(orderId, itemId, medicineId, quantity)
+    // Uncheck zeroed-out items (checked state lives here, not in the hook)
+    if (quantity === 0) {
+      setChecked((prev) => {
+        const set = new Set(prev[orderId] ?? [])
+        set.delete(medicineId)
+        return { ...prev, [orderId]: set }
+      })
+    }
+  }
+
   const isEmpty = pending.length === 0 && collecting.length === 0
+
+  if (loading) {
+    return <div className="py-16 text-center text-sm text-gray-400">Загрузка заказов...</div>
+  }
 
   return (
     <div className="space-y-8">
@@ -173,6 +69,8 @@ export function OrdersPage() {
           + Создать заказ
         </button>
       </div>
+
+      <ErrorBanner message={error} onRetry={refetch} />
 
       {/* ── Pending orders ─────────────────────────────── */}
       <section>
@@ -200,7 +98,10 @@ export function OrdersPage() {
                 </div>
 
                 <p className="text-sm text-gray-500 mb-1">
-                  Клиент: <span className="font-medium text-gray-800">{order.customer.name || order.customer.phone}</span>
+                  Клиент:{' '}
+                  <span className="font-medium text-gray-800">
+                    {order.customer.name || order.customer.phone}
+                  </span>
                 </p>
                 {order.deliveryAddress && (
                   <p className="text-sm text-gray-500 mb-3">📍 {order.deliveryAddress}</p>
@@ -209,27 +110,33 @@ export function OrdersPage() {
                 <div className="space-y-1 mb-4 bg-gray-50 rounded-lg p-3">
                   {order.items.map((item) => (
                     <div key={item.medicineId} className="flex justify-between text-sm">
-                      <span className="text-gray-700">{item.nameRu} {item.dosage} × {item.quantity}</span>
-                      <span className="text-gray-500">{(item.unitPrice * item.quantity).toLocaleString()} сум</span>
+                      <span className="text-gray-700">
+                        {item.nameRu} {item.dosage} × {item.quantity}
+                      </span>
+                      <span className="text-gray-500">
+                        {(item.unitPrice * item.quantity).toLocaleString()} сум
+                      </span>
                     </div>
                   ))}
                 </div>
 
                 <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                  <span className="font-bold text-gray-900 text-lg">{order.totalPrice.toLocaleString()} сум</span>
+                  <span className="font-bold text-gray-900 text-lg">
+                    {order.totalPrice.toLocaleString()} сум
+                  </span>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => { setRejectId(order.id); setRejectReason('Нет в наличии'); setRejectOther('') }}
+                      onClick={() => setRejectId(order.id)}
                       className="px-4 py-2 rounded-lg border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 transition-colors"
                     >
                       Отклонить
                     </button>
                     <button
                       onClick={() => startCollecting(order.id)}
-                      disabled={!!loading[order.id]}
+                      disabled={!!actionLoading[order.id]}
                       className="px-5 py-2 rounded-lg bg-[#16a273] text-white text-sm font-semibold hover:bg-[#13916a] transition-colors disabled:opacity-50"
                     >
-                      {loading[order.id] ? '...' : '✓ Принять'}
+                      {actionLoading[order.id] ? '...' : '✓ Принять'}
                     </button>
                   </div>
                 </div>
@@ -257,7 +164,8 @@ export function OrdersPage() {
             {collecting.map((order) => {
               const checkedSet = checked[order.id] ?? new Set<string>()
               const activeItems = order.items.filter((i) => i.quantity > 0)
-              const allChecked = activeItems.length > 0 && activeItems.every((i) => checkedSet.has(i.medicineId))
+              const allChecked =
+                activeItems.length > 0 && activeItems.every((i) => checkedSet.has(i.medicineId))
 
               return (
                 <div key={order.id} className="bg-white rounded-xl border border-blue-200 p-5 shadow-sm">
@@ -271,12 +179,13 @@ export function OrdersPage() {
                     </span>
                   </div>
 
-                  {/* Customer info + phone */}
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-sm text-gray-600">{order.customer.name || 'Клиент'}</p>
                     {order.customer.phone && (
-                      <a href={`tel:${order.customer.phone}`}
-                        className="flex items-center gap-1.5 text-sm text-[#16a273] font-medium bg-[#dcf8ea] px-3 py-1 rounded-lg">
+                      <a
+                        href={`tel:${order.customer.phone}`}
+                        className="flex items-center gap-1.5 text-sm text-[#16a273] font-medium bg-[#dcf8ea] px-3 py-1 rounded-lg"
+                      >
                         📞 {order.customer.phone}
                       </a>
                     )}
@@ -284,27 +193,55 @@ export function OrdersPage() {
 
                   <div className="space-y-2 mb-4">
                     {order.items.map((item) => (
-                      <div key={item.id} className={`flex items-center gap-3 p-2 rounded-lg ${checkedSet.has(item.medicineId) ? 'bg-gray-50' : 'bg-white border border-gray-100'}`}>
+                      <div
+                        key={item.id}
+                        className={`flex items-center gap-3 p-2 rounded-lg ${
+                          checkedSet.has(item.medicineId) ? 'bg-gray-50' : 'bg-white border border-gray-100'
+                        }`}
+                      >
                         <input
                           type="checkbox"
                           checked={checkedSet.has(item.medicineId)}
                           onChange={() => toggleItem(order.id, item.medicineId)}
                           className="w-4 h-4 rounded accent-[#16a273] shrink-0"
                         />
-                        <span className={`text-sm flex-1 ${checkedSet.has(item.medicineId) ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                        <span
+                          className={`text-sm flex-1 ${
+                            checkedSet.has(item.medicineId)
+                              ? 'line-through text-gray-400'
+                              : 'text-gray-700'
+                          }`}
+                        >
                           {item.nameRu} {item.dosage}
                         </span>
-                        {/* Editable quantity */}
                         <div className="flex items-center gap-1 shrink-0">
                           <button
-                            onClick={() => updateItemQty(order.id, item.id, item.medicineId, Math.max(0, item.quantity - 1))}
+                            onClick={() =>
+                              handleUpdateItemQty(
+                                order.id,
+                                item.id,
+                                item.medicineId,
+                                Math.max(0, item.quantity - 1),
+                              )
+                            }
                             className="w-6 h-6 rounded border border-gray-300 text-gray-600 hover:bg-gray-100 flex items-center justify-center text-xs"
-                          >−</button>
+                          >
+                            −
+                          </button>
                           <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
                           <button
-                            onClick={() => updateItemQty(order.id, item.id, item.medicineId, item.quantity + 1)}
+                            onClick={() =>
+                              handleUpdateItemQty(
+                                order.id,
+                                item.id,
+                                item.medicineId,
+                                item.quantity + 1,
+                              )
+                            }
                             className="w-6 h-6 rounded border border-gray-300 text-gray-600 hover:bg-gray-100 flex items-center justify-center text-xs"
-                          >+</button>
+                          >
+                            +
+                          </button>
                         </div>
                         <span className="text-sm text-gray-400 w-24 text-right shrink-0">
                           {(item.unitPrice * item.quantity).toLocaleString()} сум
@@ -314,13 +251,19 @@ export function OrdersPage() {
                   </div>
 
                   <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                    <span className="font-bold text-gray-900">{order.totalPrice.toLocaleString()} сум</span>
+                    <span className="font-bold text-gray-900">
+                      {order.totalPrice.toLocaleString()} сум
+                    </span>
                     <button
                       onClick={() => confirmOrder(order.id)}
-                      disabled={!allChecked || !!loading[order.id]}
+                      disabled={!allChecked || !!actionLoading[order.id]}
                       className="px-5 py-2 rounded-lg bg-[#16a273] text-white text-sm font-semibold hover:bg-[#13916a] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
-                      {loading[order.id] ? '...' : allChecked ? '✓ Готово к выдаче' : `Отметьте все (${order.items.length - checkedSet.size} осталось)`}
+                      {actionLoading[order.id]
+                        ? '...'
+                        : allChecked
+                          ? '✓ Готово к выдаче'
+                          : `Отметьте все (${order.items.length - checkedSet.size} осталось)`}
                     </button>
                   </div>
                 </div>
@@ -338,56 +281,22 @@ export function OrdersPage() {
         </div>
       )}
 
-      {/* Reject modal */}
       {showCreate && (
         <CreateOrderModal
           onClose={() => setShowCreate(false)}
-          onCreated={() => {
-            api.get<Order[]>('/pharmacist/orders').then((r) => classifyOrders(r.data)).catch(() => {})
-          }}
+          onCreated={() => refetch()}
         />
       )}
 
       {rejectId && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
-            <h2 className="font-semibold text-gray-900 mb-4">Причина отклонения</h2>
-            <div className="space-y-2 mb-4">
-              {REJECT_REASONS.map((r) => (
-                <label key={r} className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-gray-50">
-                  <input
-                    type="radio"
-                    name="reason"
-                    value={r}
-                    checked={rejectReason === r}
-                    onChange={() => setRejectReason(r)}
-                    className="accent-[#16a273]"
-                  />
-                  <span className="text-sm text-gray-700">{r}</span>
-                </label>
-              ))}
-            </div>
-            {rejectReason === 'Другое' && (
-              <input
-                type="text"
-                value={rejectOther}
-                onChange={(e) => setRejectOther(e.target.value)}
-                placeholder="Укажите причину"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-[#16a273]"
-              />
-            )}
-            <div className="flex gap-2">
-              <button onClick={() => setRejectId(null)}
-                className="flex-1 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">
-                Отмена
-              </button>
-              <button onClick={confirmReject}
-                className="flex-1 py-2 rounded-lg bg-red-500 text-white text-sm font-medium hover:bg-red-600">
-                Отклонить
-              </button>
-            </div>
-          </div>
-        </div>
+        <RejectOrderModal
+          orderId={rejectId}
+          onClose={() => setRejectId(null)}
+          onConfirm={async (reason) => {
+            await rejectOrder(rejectId, reason)
+            setRejectId(null)
+          }}
+        />
       )}
     </div>
   )

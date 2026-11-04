@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { clearAuth, getAuth, saveAccessToken } from '../store/authStore'
 
-export const API_URL = import.meta.env.VITE_API_URL ?? 'https://pharmago-api-production.up.railway.app'
+export const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
 export const api = axios.create({ baseURL: API_URL })
 
@@ -12,7 +12,7 @@ api.interceptors.request.use((config) => {
 })
 
 let isRefreshing = false
-let queue: Array<(token: string) => void> = []
+let queue: Array<{ resolve: (token: string) => void; reject: (err: unknown) => void }> = []
 
 api.interceptors.response.use(
   (r) => r,
@@ -34,10 +34,13 @@ api.interceptors.response.use(
 
     // Queue up requests that arrive while we're already refreshing
     if (isRefreshing) {
-      return new Promise((resolve) => {
-        queue.push((token) => {
-          err.config!.headers!.Authorization = `Bearer ${token}`
-          resolve(api(err.config!))
+      return new Promise((resolve, reject) => {
+        queue.push({
+          resolve: (token) => {
+            err.config!.headers!.Authorization = `Bearer ${token}`
+            resolve(api(err.config!))
+          },
+          reject,
         })
       })
     }
@@ -47,14 +50,16 @@ api.interceptors.response.use(
       const res = await axios.post(`${API_URL}/auth/refresh`, { refreshToken })
       const newToken: string = res.data.accessToken
       saveAccessToken(newToken)
-      queue.forEach((cb) => cb(newToken))
+      queue.forEach((cb) => cb.resolve(newToken))
       queue = []
       err.config!.headers!.Authorization = `Bearer ${newToken}`
       return api(err.config!)
-    } catch {
+    } catch (refreshErr) {
+      queue.forEach((cb) => cb.reject(refreshErr))
+      queue = []
       clearAuth()
       window.location.href = '/login'
-      return Promise.reject(err)
+      return Promise.reject(refreshErr)
     } finally {
       isRefreshing = false
     }

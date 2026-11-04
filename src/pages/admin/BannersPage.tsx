@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../../lib/api'
+import { ErrorBanner } from '../../components/ErrorBanner'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_KEY as string
@@ -64,13 +65,18 @@ export function BannersPage() {
   const [medLoading, setMedLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { load() }, [])
 
   async function load() {
-    const r = await api.get<Banner[]>('/banners/all')
-    setBanners(r.data)
+    try {
+      const r = await api.get<Banner[]>('/banners/all')
+      setBanners(r.data)
+    } catch (e: any) {
+      setError(e?.response?.data?.message ?? 'Ошибка загрузки')
+    }
   }
 
   async function searchMedicines(q: string) {
@@ -143,6 +149,7 @@ export function BannersPage() {
 
   return (
     <div className="space-y-6 max-w-2xl">
+      <ErrorBanner message={error} onRetry={load} />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-gray-900">Баннеры</h1>

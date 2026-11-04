@@ -1,8 +1,14 @@
 import { type FormEvent, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { authService } from '../services/auth.service'
+import { getAuth } from '../store/authStore'
 
 export function LoginPage() {
+  const auth = getAuth()
+  if (auth.token) {
+    return <Navigate to={auth.role === 'admin' ? '/admin/dashboard' : '/pharmacist/orders'} replace />
+  }
+
   const nav = useNavigate()
   const [login, setLogin] = useState('')
   const [password, setPassword] = useState('')

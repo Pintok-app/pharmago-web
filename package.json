@@ -13,8 +13,7 @@
     "@microsoft/fetch-event-source": "^2.0.1",
     "axios": "^1.20.0",
     "date-fns": "^4.4.0",
-    "lucide-react": "^1.48.0",
-    "react": "^19.2.8",
+"react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.4"
   },

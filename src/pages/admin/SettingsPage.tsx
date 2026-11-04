@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../lib/api'
+import { ErrorBanner } from '../../components/ErrorBanner'
 
 interface Settings {
   delivery_fee_flat: string
@@ -16,11 +17,12 @@ export function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState<Partial<Record<SettingKey, boolean>>>({})
   const [saved, setSaved] = useState<Partial<Record<SettingKey, boolean>>>({})
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     api.get<Settings>('/admin/settings')
       .then((r) => setSettings(r.data))
-      .catch(() => {})
+      .catch((e) => setError(e?.response?.data?.message ?? 'Ошибка загрузки'))
       .finally(() => setLoading(false))
   }, [])
 
@@ -39,6 +41,7 @@ export function SettingsPage() {
 
   return (
     <div className="space-y-6 max-w-lg mx-auto">
+      <ErrorBanner message={error} />
       <h1 className="text-xl font-semibold text-gray-900">Настройки</h1>
 
       <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
