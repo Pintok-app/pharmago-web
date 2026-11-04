@@ -5,6 +5,7 @@ import { saveAuth, type AuthUser, type Role } from '../store/authStore'
 
 export function LoginPage() {
   const nav = useNavigate()
+  const [role, setRole] = useState<Role>('pharmacist')
   const [login, setLogin] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -15,11 +16,9 @@ export function LoginPage() {
     setError('')
     setLoading(true)
     try {
-      // Try pharmacist first; on 401 fall through to admin
-      let role: Role = 'pharmacist'
-      const pharmacistRes = await api.post('/auth/pharmacist-login', { login, password }).catch(() => null)
-      const res = pharmacistRes ?? (() => { role = 'admin'; return api.post('/auth/admin-login', { login, password }) })()
-      const { accessToken, refreshToken, user } = (await res).data as { accessToken: string; refreshToken: string; role: Role; user: AuthUser }
+      const endpoint = role === 'admin' ? '/auth/admin-login' : '/auth/pharmacist-login'
+      const { data } = await api.post(endpoint, { login, password })
+      const { accessToken, refreshToken, user } = data as { accessToken: string; refreshToken: string; user: AuthUser }
       saveAuth(accessToken, role, user, refreshToken)
       nav(role === 'admin' ? '/admin/dashboard' : '/pharmacist/orders', { replace: true })
     } catch {
@@ -40,6 +39,32 @@ export function LoginPage() {
           <p className="text-sm text-gray-500 mt-1">Войдите в свой аккаунт</p>
         </div>
 
+        {/* Role selector */}
+        <div className="flex rounded-lg border border-gray-200 p-1 mb-6 bg-gray-50">
+          <button
+            type="button"
+            onClick={() => { setRole('pharmacist'); setError('') }}
+            className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${
+              role === 'pharmacist'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Фармацевт
+          </button>
+          <button
+            type="button"
+            onClick={() => { setRole('admin'); setError('') }}
+            className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${
+              role === 'admin'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Администратор
+          </button>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Логин</label>
@@ -48,7 +73,7 @@ export function LoginPage() {
               value={login}
               onChange={(e) => setLogin(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#16a273] focus:border-transparent"
-              placeholder="shimbay1"
+              placeholder={role === 'admin' ? 'admin' : 'shimbay1'}
               required
             />
           </div>
