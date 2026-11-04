@@ -1,7 +1,6 @@
 import { type FormEvent, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api } from '../lib/api'
-import { saveAuth, type AuthUser, type Role } from '../store/authStore'
+import { authService } from '../services/auth.service'
 
 export function LoginPage() {
   const nav = useNavigate()
@@ -15,11 +14,7 @@ export function LoginPage() {
     setError('')
     setLoading(true)
     try {
-      let role: Role = 'pharmacist'
-      const pharmacistRes = await api.post('/auth/pharmacist-login', { login, password }).catch(() => null)
-      const res = pharmacistRes ?? (() => { role = 'admin'; return api.post('/auth/admin-login', { login, password }) })()
-      const { accessToken, refreshToken, user } = (await res).data as { accessToken: string; refreshToken: string; user: AuthUser }
-      saveAuth(accessToken, role, user, refreshToken)
+      const role = await authService.login(login, password)
       nav(role === 'admin' ? '/admin/dashboard' : '/pharmacist/orders', { replace: true })
     } catch {
       setError('Неверный логин или пароль')

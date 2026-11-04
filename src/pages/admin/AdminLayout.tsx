@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { clearAuth, getAuth } from '../../store/authStore'
+import { getAuth } from '../../store/authStore'
+import { authService } from '../../services/auth.service'
 
 const NAV = [
   { to: '/admin/dashboard',   label: 'Заказы' },
@@ -17,7 +18,7 @@ export function AdminLayout() {
   const [open, setOpen] = useState(false)
 
   function logout() {
-    clearAuth()
+    authService.logout()
     nav('/login', { replace: true })
   }
 
