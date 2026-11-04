@@ -31,7 +31,7 @@ api.interceptors.response.use(
 
     // Queue up requests that arrive while we're already refreshing
     if (isRefreshing) {
-      return new Promise((resolve, reject) => {
+      return new Promise((resolve) => {
         queue.push((token) => {
           err.config!.headers!.Authorization = `Bearer ${token}`
           resolve(api(err.config!))
