@@ -168,7 +168,7 @@ export function OrdersPage() {
         <h1 className="text-lg font-semibold text-gray-900">Заказы</h1>
         <button
           onClick={() => setShowCreate(true)}
-          className="px-4 py-2 bg-[#16a273] text-white text-sm font-semibold rounded-lg hover:bg-[#13916a] transition-colors"
+          className="hidden sm:flex px-4 py-2 bg-[#16a273] text-white text-sm font-semibold rounded-lg hover:bg-[#13916a] transition-colors"
         >
           + Создать заказ
         </button>

@@ -72,7 +72,7 @@ export function DriversPage() {
         <h1 className="text-xl font-semibold text-gray-900">Водители</h1>
         <button
           onClick={() => setShowCreate(true)}
-          className="px-4 py-2 bg-[#16a273] text-white rounded-lg text-sm font-medium hover:bg-[#13916a] transition-colors"
+          className="hidden sm:flex px-4 py-2 bg-[#16a273] text-white rounded-lg text-sm font-medium hover:bg-[#13916a] transition-colors"
         >
           + Добавить
         </button>
@@ -97,8 +97,8 @@ export function DriversPage() {
       {loading ? (
         <div className="py-12 text-center text-gray-400">Загрузка...</div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden overflow-x-auto">
+          <table className="w-full text-sm min-w-[480px]">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="text-left px-4 py-3 font-medium text-gray-500">Имя</th>

@@ -45,8 +45,8 @@ export function PharmacistHistoryPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-lg font-semibold text-gray-900">История заказов</h1>
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
+        <table className="w-full text-sm min-w-[480px]">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               <th className="text-left px-4 py-3 font-medium text-gray-500">Заказ</th>
